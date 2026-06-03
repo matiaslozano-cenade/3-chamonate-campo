@@ -51,7 +51,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-white text-lg font-extrabold tracking-tight">Proyecto Chamonate · Rentabilidad CAMPO</h1>
-        <p class="text-green-300/60 text-xs font-medium">Fuente: Libro Mayor</p>
+        <p class="text-green-300/60 text-xs font-medium">Fuente: Libro Mayor · Temporada agrícola may–abr</p>
       </div>
       <span class="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1.5 rounded-full border border-green-400/30">🌿 Campo</span>
     </div>
@@ -71,7 +71,7 @@
     <div class="p-3 flex items-center justify-between gap-4 flex-wrap">
       <div class="flex items-center gap-4 flex-wrap">
         <div class="flex items-center gap-2">
-          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">📅 Año:</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">🌱 Temporada:</span>
           <div class="flex gap-1.5" id="year-pills-global"></div>
         </div>
         <div class="flex items-center gap-2">
@@ -89,24 +89,24 @@
   <div data-tab="general" class="visible space-y-6">
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpis-general"></div>
     <div class="card"><div class="p-5 overflow-x-auto">
-      <h3 class="text-sm font-bold text-gray-700 mb-4">Resumen Comparativo Anual</h3>
+      <h3 class="text-sm font-bold text-gray-700 mb-4">Resumen Comparativo por Temporada</h3>
       <table class="w-full text-sm" id="tabla-anual"></table>
     </div></div>
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="card lg:col-span-2"><div class="p-5">
         <h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos · Resultado</h3>
-        <p class="text-xs text-gray-400 mb-4">Comparativa por año · Libro Mayor</p>
+        <p class="text-xs text-gray-400 mb-4">Comparativa por temporada (may–abr) · Libro Mayor</p>
         <canvas id="chart-anual" height="160"></canvas>
       </div></div>
       <div class="card"><div class="p-5">
         <h3 class="text-sm font-bold text-gray-700 mb-1">Margen %</h3>
-        <p class="text-xs text-gray-400 mb-4">% sobre ingresos por año</p>
+        <p class="text-xs text-gray-400 mb-4">% sobre ingresos por temporada</p>
         <canvas id="chart-margen" height="200"></canvas>
       </div></div>
     </div>
     <div class="card"><div class="p-5">
       <h3 class="text-sm font-bold text-gray-700 mb-1">Resultado por Sector</h3>
-      <p class="text-xs text-gray-400 mb-4" id="ubic-ranking-subtitulo">Año seleccionado · Click en barra para ver detalle</p>
+      <p class="text-xs text-gray-400 mb-4" id="ubic-ranking-subtitulo">Temporada seleccionada · Click en barra para ver detalle</p>
       <canvas id="chart-sectores" height="220"></canvas>
     </div></div>
     <div class="card"><div class="p-5">
@@ -121,7 +121,7 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpis-mensual"></div>
     <div class="card"><div class="p-5">
       <h3 class="text-sm font-bold text-gray-700 mb-1">Evolución mensual · Ingresos · Costos · Resultado</h3>
-      <p class="text-xs text-gray-400 mb-4" id="mensual-subtitulo">Año seleccionado</p>
+      <p class="text-xs text-gray-400 mb-4" id="mensual-subtitulo">Temporada seleccionada</p>
       <canvas id="chart-mensual" height="140"></canvas>
     </div></div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -201,7 +201,16 @@ const fCLP = v => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP'
 const fM = v => { const a=Math.abs(v),s=v<0?'-':''; if(a>=1e9) return s+'$'+(a/1e9).toFixed(1).replace('.',',')+' B'; if(a>=1e6) return s+'$'+(a/1e6).toFixed(1).replace('.',',')+' M'; if(a>=1e3) return s+'$'+(a/1e3).toFixed(0)+' K'; return s+'$'+a; };
 const fN = v => new Intl.NumberFormat('es-CL').format(Math.round(v));
 const fPct = v => v.toFixed(1).replace('.',',')+'%';
-const yLabel = y => String(y);
+// ===== TEMPORADA AGRÍCOLA (mayo → abril) =====
+// La temporada T abarca de mayo del año T a abril del año T+1.
+// mes >= 5 (may..dic) pertenece a la temporada del mismo año; mes <= 4 (ene..abr) a la del año anterior.
+const TEMP_ORDER = [5,6,7,8,9,10,11,12,1,2,3,4]; // orden de meses dentro de una temporada
+const tempOf = (ano, mes) => mes >= 5 ? ano : ano - 1;          // temporada (año de inicio) de un (año,mes) contable
+const anoForTempMonth = (temp, mes) => mes >= 5 ? temp : temp + 1; // año contable real de un mes dentro de una temporada
+const tempMonthIdx = mes => TEMP_ORDER.indexOf(+mes);          // posición del mes en el orden de temporada
+const pad2 = n => String(((n % 100) + 100) % 100).padStart(2, '0');
+const tempLabel = t => 'Temp. ' + pad2(t) + '-' + pad2(t + 1);  // ej: 2024 -> "Temp. 24-25"
+const yLabel = tempLabel;
 const calc = (ing, costo) => { const r = ing - costo; const m = ing > 0 ? r/ing*100 : (costo > 0 ? -100 : 0); return { resultado: r, margen: Math.round(m*10)/10 }; };
 
 function kpiHTML(label, value, sub, danger) {
@@ -240,7 +249,7 @@ async function initData() {
       console.error(error);
       return;
     }
-    RAW_CUENTA.push(...data.map(r => ({ cod:r.cod, grupo:r.grupo, ano:+r.ano, mes:+r.mes, n_cuenta:r.n_cuenta, tipo:r.tipo, monto:+r.monto })));
+    RAW_CUENTA.push(...data.map(r => ({ cod:r.cod, grupo:r.grupo, ano:+r.ano, mes:+r.mes, temp:tempOf(+r.ano,+r.mes), n_cuenta:r.n_cuenta, tipo:r.tipo, monto:+r.monto })));
     if (data.length < PAGE) break;
     cFrom += PAGE;
   }
@@ -263,10 +272,13 @@ async function initData() {
   const sectoresSet = new Set(catRows.map(r => r.grupo).filter(Boolean));
   SECTORES_ORDEN = [...sectoresSet].sort();
 
+  // NOTA: el campo `ano` en los resúmenes representa la TEMPORADA (año de inicio, may->abr),
+  // no el año calendario. `mes` se mantiene como mes contable real (1-12) para drill-down y CSV.
   const ccAnnMap = {};
   ccRows.forEach(r => {
-    const k = r.cod + '-' + r.ano;
-    if (!ccAnnMap[k]) ccAnnMap[k] = { cod:r.cod, nombre:r.nombre, grupo:r.grupo, ano:+r.ano, ingreso:0, costo:0 };
+    const t = tempOf(+r.ano, +r.mes);
+    const k = r.cod + '-' + t;
+    if (!ccAnnMap[k]) ccAnnMap[k] = { cod:r.cod, nombre:r.nombre, grupo:r.grupo, ano:t, ingreso:0, costo:0 };
     ccAnnMap[k].ingreso += +r.ingresos;
     ccAnnMap[k].costo  += +r.costos;
   });
@@ -274,7 +286,7 @@ async function initData() {
 
   const resumen_cc_mes = ccRows.map(r => {
     const ing = +r.ingresos, cos = +r.costos;
-    return { cod:r.cod, nombre:r.nombre, grupo:r.grupo, ano:+r.ano, mes:+r.mes, ingreso:ing, costo:cos, ...calc(ing, cos) };
+    return { cod:r.cod, nombre:r.nombre, grupo:r.grupo, ano:tempOf(+r.ano,+r.mes), mes:+r.mes, ingreso:ing, costo:cos, ...calc(ing, cos) };
   });
 
   const mensMap = {};
@@ -284,7 +296,7 @@ async function initData() {
     mensMap[k].ingreso += r.ingreso;
     mensMap[k].costo  += r.costo;
   });
-  const resumen_mensual = Object.values(mensMap).map(r => ({ ...r, ...calc(r.ingreso, r.costo) })).sort((a,b)=>a.ano-b.ano||a.mes-b.mes);
+  const resumen_mensual = Object.values(mensMap).map(r => ({ ...r, ...calc(r.ingreso, r.costo) })).sort((a,b)=>a.ano-b.ano||tempMonthIdx(a.mes)-tempMonthIdx(b.mes));
 
   const anoMap = {};
   resumen_mensual.forEach(r => {
@@ -296,8 +308,9 @@ async function initData() {
 
   const grpAnnMap = {};
   grupoRows.forEach(r => {
-    const k = r.grupo + '-' + r.ano;
-    if (!grpAnnMap[k]) grpAnnMap[k] = { grupo:r.grupo, ano:+r.ano, ingreso:0, costo:0 };
+    const t = tempOf(+r.ano, +r.mes);
+    const k = r.grupo + '-' + t;
+    if (!grpAnnMap[k]) grpAnnMap[k] = { grupo:r.grupo, ano:t, ingreso:0, costo:0 };
     grpAnnMap[k].ingreso += +r.ingresos;
     grpAnnMap[k].costo  += +r.costos;
   });
@@ -319,7 +332,7 @@ function getAvailableYears() {
 }
 
 function getAvailableMonths(y) {
-  return [...new Set(DATA.resumen_mensual.filter(r => r.ano === y && (r.ingreso !== 0 || r.costo !== 0)).map(r => r.mes))].sort((a,b)=>a-b);
+  return [...new Set(DATA.resumen_mensual.filter(r => r.ano === y && (r.ingreso !== 0 || r.costo !== 0)).map(r => r.mes))].sort((a,b)=>tempMonthIdx(a)-tempMonthIdx(b));
 }
 
 function getFilteredAnual() {
@@ -347,7 +360,7 @@ function getFilteredSector() {
 }
 
 function periodoLabel() {
-  return state.month === 0 ? yLabel(state.year) : MESES[state.month] + ' ' + state.year;
+  return state.month === 0 ? yLabel(state.year) : MESES[state.month] + ' ' + anoForTempMonth(state.year, state.month);
 }
 
 // =========== EERR (Estado de Resultado por cuenta) ===========
@@ -356,7 +369,7 @@ function eerrData(scope) {
   scope = scope || {};
   let ing = 0; const cByC = {};
   RAW_CUENTA.forEach(r => {
-    if (r.ano !== state.year) return;
+    if (r.temp !== state.year) return;
     if (state.month !== 0 && r.mes !== state.month) return;
     if (scope.grupo && r.grupo !== scope.grupo) return;
     if (scope.cod && r.cod !== scope.cod) return;
@@ -412,8 +425,8 @@ function makeGlobalPills() {
 function makeMonthSelect() {
   const sel = document.getElementById('month-select-global');
   const meses = getAvailableMonths(state.year);
-  let opts = '<option value="0">Todo el año</option>';
-  meses.forEach(m => { opts += '<option value="' + m + '"' + (m === state.month ? ' selected' : '') + '>' + MESES[m] + '</option>'; });
+  let opts = '<option value="0">Toda la temporada</option>';
+  meses.forEach(m => { opts += '<option value="' + m + '"' + (m === state.month ? ' selected' : '') + '>' + MESES[m] + ' ' + anoForTempMonth(state.year, m) + '</option>'; });
   sel.innerHTML = opts;
   sel.value = state.month;
   sel.onchange = () => { state.month = +sel.value; rerender(); };
@@ -526,7 +539,7 @@ function renderGeneral() {
 // =========== MENSUAL ===========
 function renderMensual() {
   const y = state.year;
-  const meses = DATA.resumen_mensual.filter(r => r.ano === y).sort((a,b) => a.mes - b.mes);
+  const meses = DATA.resumen_mensual.filter(r => r.ano === y).sort((a,b) => tempMonthIdx(a.mes) - tempMonthIdx(b.mes));
   document.getElementById('mensual-subtitulo').textContent = yLabel(y) + ' · ' + meses.length + ' meses con datos';
   const ti = meses.reduce((s,r)=>s+r.ingreso,0), tc = meses.reduce((s,r)=>s+r.costo,0);
   const tr = ti - tc, tm = ti > 0 ? tr/ti*100 : 0;
@@ -710,7 +723,7 @@ function renderCuartel() {
   if (!meta) { document.getElementById('cuartel-content').innerHTML = '<div class="card p-8 text-center text-gray-400">No encontrado</div>'; return; }
 
   const histo = DATA.resumen_cc.filter(x => x.cod === state.selectedCC).sort((a,b) => a.ano - b.ano);
-  const meses_cc = DATA.resumen_cc_mes.filter(x => x.cod === state.selectedCC && x.ano === y).sort((a,b) => a.mes - b.mes);
+  const meses_cc = DATA.resumen_cc_mes.filter(x => x.cod === state.selectedCC && x.ano === y).sort((a,b) => tempMonthIdx(a.mes) - tempMonthIdx(b.mes));
   const gc = SECTOR_COLOR[meta.grupo] || DEFAULT_COLOR;
 
   let html = '<div class="card"><div class="p-5">' +
@@ -781,15 +794,20 @@ async function loadMovimientos(cod, nombre) {
 
   document.getElementById('mov-panel').scrollIntoView({behavior:'smooth', block:'start'});
 
+  const t = state.year; // temporada (año de inicio)
   let query = db.from('3_chamonate_libro_mayor')
     .select('fecha,tipo_doc,numero,glosa_enc,n_cuenta,glosa_det,debe,haber,rut,nombre')
     .eq('c_cc', cod)
-    .eq('ano_contable', state.year)
     .order('fecha', {ascending:true})
     .order('numero', {ascending:true})
     .limit(1000);
 
-  if (state.month > 0) query = query.eq('mes_contable', state.month);
+  if (state.month > 0) {
+    query = query.eq('ano_contable', anoForTempMonth(t, state.month)).eq('mes_contable', state.month);
+  } else {
+    // temporada may->abr: (año t, meses 5-12) o (año t+1, meses 1-4)
+    query = query.or('and(ano_contable.eq.' + t + ',mes_contable.gte.5),and(ano_contable.eq.' + (t + 1) + ',mes_contable.lte.4)');
+  }
 
   const { data, error } = await query;
 
@@ -889,8 +907,12 @@ async function downloadDetalle(params) {
   while (true) {
     let q = db.from('v_3_campo_detalle').select('*');
     if (tipo && tipo !== 'ambos') q = q.eq('tipo', tipo);
-    if (ano) q = q.eq('ano_contable', ano);
-    if (mes && mes > 0) q = q.eq('mes_contable', mes);
+    // ano = temporada (año de inicio, may->abr). Traducir a año/mes contable real.
+    if (ano && mes && mes > 0) {
+      q = q.eq('ano_contable', anoForTempMonth(ano, mes)).eq('mes_contable', mes);
+    } else if (ano) {
+      q = q.or('and(ano_contable.eq.' + ano + ',mes_contable.gte.5),and(ano_contable.eq.' + (ano + 1) + ',mes_contable.lte.4)');
+    }
     if (grupo) q = q.eq('cc_grupo', grupo);
     if (cod) q = q.eq('cc_cod', cod);
     q = q.order('fecha').order('numero').range(from, from + PAGE - 1);
@@ -911,8 +933,8 @@ async function downloadDetalle(params) {
   hideToast();
   if (!allRows.length) { alert('No hay datos para este período.'); return; }
   const t = tipo || 'todo';
-  const y = ano ? String(ano) : '';
-  const m = (mes && mes > 0) ? (MESES[mes] || String(mes)) : '';
+  const y = ano ? ('Temp' + pad2(ano) + '-' + pad2(ano + 1)) : '';
+  const m = (mes && mes > 0) ? ((MESES[mes] || String(mes)) + anoForTempMonth(ano, mes)) : '';
   const g = grupo ? grupo.replace(/\s+/g,'-') : '';
   const c = cod || '';
   const parts = ['CAMPO', t, c || g || 'todos', y, m].filter(Boolean);
