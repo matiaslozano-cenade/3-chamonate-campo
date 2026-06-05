@@ -84,6 +84,14 @@
           <span class="text-xs font-bold uppercase tracking-wider text-gray-500">🗓 Mes:</span>
           <select id="month-select-global" class="bg-white border border-gray-200 rounded-full px-3 py-1 text-xs font-semibold text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-200"></select>
         </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">🌳 Sucursal:</span>
+          <select id="sucursal-select-global" class="bg-white border border-gray-200 rounded-full px-3 py-1 text-xs font-semibold text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-200"></select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-gray-500">📦 Grupo CC:</span>
+          <select id="cultivo-select-global" class="bg-white border border-gray-200 rounded-full px-3 py-1 text-xs font-semibold text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-200"></select>
+        </div>
       </div>
       <div id="breadcrumb" class="text-xs text-gray-400 font-medium flex items-center gap-2">
         <span>Inicio</span>
@@ -234,7 +242,7 @@ let SECTORES_ORDEN = [];
 let CULTIVOS_ORDEN = [];
 let DATA = null;
 let RAW_CUENTA = [];
-let state = { year: 2025, month: 0, selectedSector: '', selectedCC: '', selectedCultivo: '', selectedVariedad: '', gcCultivo: '', gcVariedad: '' };
+let state = { year: 2025, month: 0, fSucursal: '', fCultivo: '', selectedSector: '', selectedCC: '', selectedCultivo: '', selectedVariedad: '', gcCultivo: '', gcVariedad: '' };
 let charts = {};
 
 const fCLP = v => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',minimumFractionDigits:0}).format(v);
@@ -372,6 +380,7 @@ async function initData() {
   document.getElementById('loading-overlay').style.display = 'none';
   makeGlobalPills();
   makeMonthSelect();
+  makeFilterSelects();
   renderGeneral();
 }
 
@@ -384,28 +393,42 @@ function getAvailableMonths(y) {
   return [...new Set(DATA.resumen_mensual.filter(r => r.ano === y && (r.ingreso !== 0 || r.costo !== 0)).map(r => r.mes))].sort((a,b)=>tempMonthIdx(a)-tempMonthIdx(b));
 }
 
-function getFilteredAnual() {
-  if (state.month === 0) return DATA.resumen_anual.find(r => r.ano === state.year) || {ingreso:0,costo:0,resultado:0,margen:0};
-  const m = DATA.resumen_mensual.find(r => r.ano === state.year && r.mes === state.month);
-  return m || {ingreso:0,costo:0,resultado:0,margen:0};
+// filtros globales Sucursal + Grupo CC (cultivo)
+function passGlobalFilter(r) {
+  return (!state.fSucursal || r.grupo === state.fSucursal) && (!state.fCultivo || r.cultivo === state.fCultivo);
 }
 
 function getFilteredCC() {
-  if (state.month === 0) return DATA.resumen_cc.filter(r => r.ano === state.year);
-  return DATA.resumen_cc_mes.filter(r => r.ano === state.year && r.mes === state.month);
+  const base = state.month === 0
+    ? DATA.resumen_cc.filter(r => r.ano === state.year)
+    : DATA.resumen_cc_mes.filter(r => r.ano === state.year && r.mes === state.month);
+  return base.filter(passGlobalFilter);
+}
+
+function getFilteredAnual() {
+  const t = getFilteredCC().reduce((a,r) => ({ ingreso:a.ingreso+r.ingreso, costo:a.costo+r.costo }), {ingreso:0, costo:0});
+  return { ...t, ...calc(t.ingreso, t.costo) };
 }
 
 function getFilteredSector() {
-  if (state.month === 0) return DATA.resumen_sector.filter(r => r.ano === state.year);
   const acc = {};
-  SECTORES_ORDEN.forEach(u => acc[u] = {ingreso:0, costo:0});
-  DATA.resumen_cc_mes.filter(r => r.ano === state.year && r.mes === state.month).forEach(r => {
-    if (acc[r.grupo]) { acc[r.grupo].ingreso += r.ingreso; acc[r.grupo].costo += r.costo; }
-  });
+  getFilteredCC().forEach(r => { const g = r.grupo; if (!acc[g]) acc[g] = {ingreso:0, costo:0}; acc[g].ingreso += r.ingreso; acc[g].costo += r.costo; });
   return SECTORES_ORDEN.map(u => {
     const x = acc[u] || {ingreso:0, costo:0};
     return { grupo:u, ano:state.year, ingreso:x.ingreso, costo:x.costo, ...calc(x.ingreso, x.costo) };
   });
+}
+
+// resúmenes que respetan los filtros globales (para General y Mensual)
+function getResumenAnual() {
+  const m = {};
+  DATA.resumen_cc_mes.filter(passGlobalFilter).forEach(r => { if (!m[r.ano]) m[r.ano] = {ano:r.ano, ingreso:0, costo:0}; m[r.ano].ingreso += r.ingreso; m[r.ano].costo += r.costo; });
+  return Object.values(m).map(r => ({ ...r, ...calc(r.ingreso, r.costo) })).sort((a,b) => a.ano - b.ano);
+}
+function getResumenMensual(y) {
+  const m = {};
+  DATA.resumen_cc_mes.filter(r => r.ano === y && passGlobalFilter(r)).forEach(r => { if (!m[r.mes]) m[r.mes] = {ano:y, mes:r.mes, ingreso:0, costo:0}; m[r.mes].ingreso += r.ingreso; m[r.mes].costo += r.costo; });
+  return Object.values(m).map(r => ({ ...r, ...calc(r.ingreso, r.costo) })).sort((a,b) => tempMonthIdx(a.mes) - tempMonthIdx(b.mes));
 }
 
 function periodoLabel() {
@@ -420,6 +443,8 @@ function eerrData(scope) {
   RAW_CUENTA.forEach(r => {
     if (r.temp !== state.year) return;
     if (state.month !== 0 && r.mes !== state.month) return;
+    if (state.fSucursal && r.grupo !== state.fSucursal) return;
+    if (state.fCultivo && r.cultivo !== state.fCultivo) return;
     if (scope.grupo && r.grupo !== scope.grupo) return;
     if (scope.cod && r.cod !== scope.cod) return;
     if (scope.cultivo && r.cultivo !== scope.cultivo) return;
@@ -469,6 +494,8 @@ function renderTipoChart(canvasId, scope, subId, subLabel) {
     if (r.tipo !== 'costos') return;
     if (r.temp !== state.year) return;
     if (state.month !== 0 && r.mes !== state.month) return;
+    if (state.fSucursal && r.grupo !== state.fSucursal) return;
+    if (state.fCultivo && r.cultivo !== state.fCultivo) return;
     if (scope.grupo && r.grupo !== scope.grupo) return;
     if (scope.cod && r.cod !== scope.cod) return;
     if (scope.cultivo && r.cultivo !== scope.cultivo) return;
@@ -515,6 +542,17 @@ function makeMonthSelect() {
   sel.onchange = () => { state.month = +sel.value; rerender(); };
 }
 
+function makeFilterSelects() {
+  const ss = document.getElementById('sucursal-select-global');
+  ss.innerHTML = '<option value="">Todas</option>' + SECTORES_ORDEN.map(s => '<option value="' + s + '"' + (s === state.fSucursal ? ' selected' : '') + '>' + s + '</option>').join('');
+  ss.value = state.fSucursal;
+  ss.onchange = () => { state.fSucursal = ss.value; rerender(); };
+  const cs = document.getElementById('cultivo-select-global');
+  cs.innerHTML = '<option value="">Todos</option>' + CULTIVOS_ORDEN.map(c => '<option value="' + c + '"' + (c === state.fCultivo ? ' selected' : '') + '>' + c + '</option>').join('');
+  cs.value = state.fCultivo;
+  cs.onchange = () => { state.fCultivo = cs.value; rerender(); };
+}
+
 function rerender() {
   const activeTab = document.querySelector('[data-tab].visible')?.dataset.tab || 'general';
   switchTab(activeTab);
@@ -559,7 +597,7 @@ function updateBreadcrumb(tabId) {
 
 // =========== GENERAL ===========
 function renderGeneral() {
-  const ra = DATA.resumen_anual;
+  const ra = getResumenAnual();
   document.getElementById('ubic-ranking-subtitulo').textContent = periodoLabel() + ' · Click en barra para ver detalle';
 
   const pd = getFilteredAnual();
@@ -630,7 +668,7 @@ function renderGeneral() {
 // =========== MENSUAL ===========
 function renderMensual() {
   const y = state.year;
-  const meses = DATA.resumen_mensual.filter(r => r.ano === y).sort((a,b) => tempMonthIdx(a.mes) - tempMonthIdx(b.mes));
+  const meses = getResumenMensual(y);
   document.getElementById('mensual-subtitulo').textContent = yLabel(y) + ' · ' + meses.length + ' meses con datos';
   const ti = meses.reduce((s,r)=>s+r.ingreso,0), tc = meses.reduce((s,r)=>s+r.costo,0);
   const tr = ti - tc, tm = ti > 0 ? tr/ti*100 : 0;
