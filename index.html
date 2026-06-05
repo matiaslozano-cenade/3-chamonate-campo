@@ -63,7 +63,7 @@
     <div class="flex gap-1 mt-4 flex-wrap" id="tabs">
       <button data-tabid="general"  class="tab-btn active flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">📊 General</button>
       <button data-tabid="mensual"  class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">📅 Mensual</button>
-      <button data-tabid="sector"   class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">🌳 Por Campo</button>
+      <button data-tabid="sector"   class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">🌳 Por Sucursal</button>
       <button data-tabid="cuartel"  class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">🔧 Por Cuartel</button>
     </div>
   </div>
@@ -123,7 +123,7 @@
     </div>
     <div class="card"><div class="p-5">
       <div class="flex items-center justify-between mb-1">
-        <h3 class="text-sm font-bold text-gray-700">Resultado por Sector</h3>
+        <h3 class="text-sm font-bold text-gray-700">Resultado por Sucursal</h3>
         <span class="text-xs font-semibold" style="color:#166534">Clic → ver detalle</span>
       </div>
       <p class="text-xs text-gray-400 mb-3" id="ubic-ranking-subtitulo">Temporada seleccionada · Click en barra para ver detalle</p>
@@ -531,7 +531,7 @@ function switchTab(id) {
 document.querySelectorAll('#tabs .tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tabid)));
 
 function updateBreadcrumb(tabId) {
-  const map = {general:'General', mensual:'Mensual', sector:'Por Campo', cuartel:'Por Cuartel'};
+  const map = {general:'General', mensual:'Mensual', sector:'Por Sucursal', cuartel:'Por Cuartel'};
   let parts = ['<span class="breadcrumb-item">Inicio</span>'];
   parts.push('<span class="text-gray-300">→</span><span class="breadcrumb-item font-semibold text-gray-600">' + (map[tabId] || tabId) + '</span>');
   if (tabId === 'sector' && state.selectedSector) {
@@ -790,7 +790,7 @@ function renderCultivo() {
 }
 
 // =========== POR SECTOR ===========
-// "Por Campo": Campo(predio) -> Cultivo -> Tipo de cultivo -> Cuartel
+// "Por Sucursal": Sucursal(predio) -> Cultivo -> Tipo de cultivo
 function renderSector() {
   updateBreadcrumb('sector');
   document.getElementById('sector-summary').innerHTML = '';
@@ -818,7 +818,7 @@ function renderSector() {
 
   // ---- NIVEL 1: CAMPOS (predios) ----
   if (!state.selectedSector) {
-    const list = aggBy(ccs, r => r.grupo || 'Sin campo').sort((a,b) => b.ingreso - a.ingreso);
+    const list = aggBy(ccs, r => r.grupo || 'Sin sucursal').sort((a,b) => b.ingreso - a.ingreso);
     let html = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">';
     list.forEach(r => {
       const hex = SECTOR_COLOR[r.key] || DEFAULT_COLOR;
@@ -829,19 +829,19 @@ function renderSector() {
         '</div>';
     });
     html += '</div>';
-    html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos por campo</h3><p class="text-xs text-gray-400 mb-3">' + periodoLabel() + '</p><div class="chart-box"><canvas id="chart-campo"></canvas></div></div></div>';
+    html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos por sucursal</h3><p class="text-xs text-gray-400 mb-3">' + periodoLabel() + '</p><div class="chart-box"><canvas id="chart-campo"></canvas></div></div></div>';
     html += eerrTipoRow;
     cont.innerHTML = html;
     document.querySelectorAll('#sector-detail .level-card').forEach(c => c.addEventListener('click', () => { state.selectedSector = c.dataset.campo; state.selectedCultivo = ''; state.selectedVariedad = ''; renderSector(); }));
     drawResultadoBar('chart-campo', list, 'key');
-    renderEERR('eerr-sector', 'eerr-sector-sub', {}, periodoLabel() + ' · todos los campos · Fuente: Libro Mayor');
-    renderTipoChart('chart-tipo-sector', {}, 'tipo-sector-sub', periodoLabel() + ' · todos los campos');
+    renderEERR('eerr-sector', 'eerr-sector-sub', {}, periodoLabel() + ' · todas las sucursales · Fuente: Libro Mayor');
+    renderTipoChart('chart-tipo-sector', {}, 'tipo-sector-sub', periodoLabel() + ' · todas las sucursales');
     return;
   }
 
   // ---- NIVEL 2: CULTIVOS del campo ----
   if (!state.selectedCultivo) {
-    const inC = ccs.filter(r => (r.grupo || 'Sin campo') === state.selectedSector);
+    const inC = ccs.filter(r => (r.grupo || 'Sin sucursal') === state.selectedSector);
     const list = aggBy(inC, r => r.cultivo || 'Sin clasificar').sort((a,b) => b.costo - a.costo);
     const { tot, tc } = totalOf(inC);
     const hex = SECTOR_COLOR[state.selectedSector] || DEFAULT_COLOR;
@@ -862,7 +862,7 @@ function renderSector() {
 
   // ---- NIVEL 3: TIPOS DE CULTIVO (variedades) ----
   if (!state.selectedVariedad) {
-    const inCV = ccs.filter(r => (r.grupo || 'Sin campo') === state.selectedSector && (r.cultivo || 'Sin clasificar') === state.selectedCultivo);
+    const inCV = ccs.filter(r => (r.grupo || 'Sin sucursal') === state.selectedSector && (r.cultivo || 'Sin clasificar') === state.selectedCultivo);
     const list = aggBy(inCV, r => r.variedad || '—').map(r => ({ ...r, tipo: tipoLabel(state.selectedCultivo, r.key === '—' ? null : r.key) })).sort((a,b) => b.costo - a.costo);
     const { tot, tc } = totalOf(inCV);
     const hex = CULTIVO_COLOR[state.selectedCultivo] || DEFAULT_COLOR;
@@ -883,7 +883,7 @@ function renderSector() {
 
   // ---- NIVEL 4 (hoja): DETALLE DEL TIPO DE CULTIVO ----
   const selVar = state.selectedVariedad === '—' ? null : state.selectedVariedad;
-  const inV = ccs.filter(r => (r.grupo || 'Sin campo') === state.selectedSector && (r.cultivo || 'Sin clasificar') === state.selectedCultivo && (r.variedad || '—') === state.selectedVariedad);
+  const inV = ccs.filter(r => (r.grupo || 'Sin sucursal') === state.selectedSector && (r.cultivo || 'Sin clasificar') === state.selectedCultivo && (r.variedad || '—') === state.selectedVariedad);
   const { tot, tc } = totalOf(inV);
   const hex = CULTIVO_COLOR[state.selectedCultivo] || DEFAULT_COLOR;
   const tlabel = tipoLabel(state.selectedCultivo, selVar);
