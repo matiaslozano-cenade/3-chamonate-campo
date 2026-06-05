@@ -6,6 +6,7 @@
 <title>Dashboard Rentabilidad CAMPO - Chamonate</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -18,6 +19,10 @@
   .card { background: #fff; border-radius: 1rem; border: 1px solid #f3f4f6; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06); }
   .row-hover:hover { background: rgba(22,101,52,0.04); cursor: pointer; }
   canvas { max-width: 100%; }
+  .chart-box { position:relative; height:260px; width:100%; }
+  .chart-box.sm { height:200px; }
+  .chart-box canvas { height:100% !important; }
+  @media (max-width:768px){ .chart-box, .chart-box.sm { height:220px; } }
   [data-tab] { display: none; }
   [data-tab].visible { display: block; }
   .breadcrumb-item { transition: all 0.2s; }
@@ -92,52 +97,70 @@
       <h3 class="text-sm font-bold text-gray-700 mb-4">Resumen Comparativo por Temporada</h3>
       <table class="w-full text-sm" id="tabla-anual"></table>
     </div></div>
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="card lg:col-span-2"><div class="p-5">
+    <div class="grid lg:grid-cols-2 gap-6">
+      <div class="card"><div class="p-5">
         <h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos · Resultado</h3>
-        <p class="text-xs text-gray-400 mb-4">Comparativa por temporada (jun–may) · Libro Mayor</p>
-        <canvas id="chart-anual" height="160"></canvas>
+        <p class="text-xs text-gray-400 mb-3">Barras = ingresos · Línea = costos · por temporada (jun–may)</p>
+        <div class="chart-box"><canvas id="chart-anual"></canvas></div>
       </div></div>
+      <div class="card" style="border-color:#dcfce7"><div class="p-5 overflow-x-auto">
+        <h3 class="text-sm font-bold text-gray-700 mb-1">📑 Estado de Resultado por cuenta</h3>
+        <p class="text-xs text-gray-400 mb-3" id="eerr-general-sub"></p>
+        <div class="overflow-x-auto" id="eerr-general"></div>
+      </div></div>
+    </div>
+    <div class="grid lg:grid-cols-2 gap-6">
       <div class="card"><div class="p-5">
         <h3 class="text-sm font-bold text-gray-700 mb-1">Margen %</h3>
-        <p class="text-xs text-gray-400 mb-4">% sobre ingresos por temporada</p>
-        <canvas id="chart-margen" height="200"></canvas>
+        <p class="text-xs text-gray-400 mb-3">% sobre ingresos por temporada</p>
+        <div class="chart-box sm"><canvas id="chart-margen"></canvas></div>
+      </div></div>
+      <div class="card"><div class="p-5">
+        <h3 class="text-sm font-bold text-gray-700 mb-1">Costos por cuenta</h3>
+        <p class="text-xs text-gray-400 mb-3" id="tipo-general-sub"></p>
+        <div class="chart-box sm"><canvas id="chart-tipo-general"></canvas></div>
       </div></div>
     </div>
     <div class="card"><div class="p-5">
-      <h3 class="text-sm font-bold text-gray-700 mb-1">Resultado por Sector</h3>
-      <p class="text-xs text-gray-400 mb-4" id="ubic-ranking-subtitulo">Temporada seleccionada · Click en barra para ver detalle</p>
-      <canvas id="chart-sectores" height="220"></canvas>
-    </div></div>
-    <div class="card"><div class="p-5">
-      <h3 class="text-sm font-bold text-gray-700 mb-1">📑 Estado de Resultado por cuenta</h3>
-      <p class="text-xs text-gray-400 mb-3" id="eerr-general-sub"></p>
-      <div class="overflow-x-auto" id="eerr-general"></div>
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-sm font-bold text-gray-700">Resultado por Sector</h3>
+        <span class="text-xs font-semibold" style="color:#166534">Clic → ver detalle</span>
+      </div>
+      <p class="text-xs text-gray-400 mb-3" id="ubic-ranking-subtitulo">Temporada seleccionada · Click en barra para ver detalle</p>
+      <div class="chart-box"><canvas id="chart-sectores"></canvas></div>
     </div></div>
   </div>
 
   <!-- MENSUAL -->
   <div data-tab="mensual" class="space-y-6">
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="kpis-mensual"></div>
-    <div class="card"><div class="p-5">
-      <h3 class="text-sm font-bold text-gray-700 mb-1">Evolución mensual · Ingresos · Costos · Resultado</h3>
-      <p class="text-xs text-gray-400 mb-4" id="mensual-subtitulo">Temporada seleccionada</p>
-      <canvas id="chart-mensual" height="140"></canvas>
-    </div></div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="grid lg:grid-cols-2 gap-6">
       <div class="card"><div class="p-5">
-        <h3 class="text-sm font-bold text-gray-700 mb-4">Margen mensual %</h3>
-        <canvas id="chart-margen-mensual" height="200"></canvas>
+        <h3 class="text-sm font-bold text-gray-700 mb-1">Evolución mensual · Ingresos vs Costos</h3>
+        <p class="text-xs text-gray-400 mb-3" id="mensual-subtitulo">Temporada seleccionada</p>
+        <div class="chart-box"><canvas id="chart-mensual"></canvas></div>
       </div></div>
-      <div class="card"><div class="p-5 overflow-x-auto">
-        <h3 class="text-sm font-bold text-gray-700 mb-4">Tabla mensual</h3>
-        <table class="w-full text-xs" id="tabla-mensual"></table>
+      <div class="card" style="border-color:#dcfce7"><div class="p-5 overflow-x-auto">
+        <h3 class="text-sm font-bold text-gray-700 mb-1">📑 Estado de Resultado por cuenta</h3>
+        <p class="text-xs text-gray-400 mb-3" id="eerr-mensual-sub"></p>
+        <div class="overflow-x-auto" id="eerr-mensual"></div>
       </div></div>
     </div>
-    <div class="card"><div class="p-5">
-      <h3 class="text-sm font-bold text-gray-700 mb-1">📑 Estado de Resultado por cuenta</h3>
-      <p class="text-xs text-gray-400 mb-3" id="eerr-mensual-sub"></p>
-      <div class="overflow-x-auto" id="eerr-mensual"></div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="card"><div class="p-5">
+        <h3 class="text-sm font-bold text-gray-700 mb-1">Margen mensual %</h3>
+        <p class="text-xs text-gray-400 mb-3">% sobre ingresos · jun → may</p>
+        <div class="chart-box sm"><canvas id="chart-margen-mensual"></canvas></div>
+      </div></div>
+      <div class="card"><div class="p-5">
+        <h3 class="text-sm font-bold text-gray-700 mb-1">Costos por cuenta</h3>
+        <p class="text-xs text-gray-400 mb-3" id="tipo-mensual-sub"></p>
+        <div class="chart-box sm"><canvas id="chart-tipo-mensual"></canvas></div>
+      </div></div>
+    </div>
+    <div class="card"><div class="p-5 overflow-x-auto">
+      <h3 class="text-sm font-bold text-gray-700 mb-4">Tabla mensual</h3>
+      <table class="w-full text-xs" id="tabla-mensual"></table>
     </div></div>
   </div>
 
@@ -175,6 +198,12 @@
 </div>
 
 <script>
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels', { display: false }); // off por defecto; se activa por gráfico
+const COLORS = ['#166534','#0369a1','#7c3aed','#b45309','#be185d','#0f766e','#10B981','#F59E0B','#EF4444','#06B6D4'];
+// etiquetas de datos sobre barras/puntos (regla: siempre visibles)
+const DL_MONEY = { anchor:'end', align:'top', display:'auto', clamp:true, formatter:v=>(v>0?fM(v):''), font:{size:9,weight:700}, color:'#374151' };
+const DL_PCT   = { anchor:'end', align:'top', display:'auto', clamp:true, formatter:v=>(v||v===0)?fPct(v):'', font:{size:9,weight:700}, color:'#374151' };
 const SUPA_URL = 'https://wjbwccacjdkuejcriode.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndqYndjY2FjamRrdWVqY3Jpb2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODY0ODksImV4cCI6MjA5MzU2MjQ4OX0.ZA2zLzyvs0sRRn9GcHYibkUrjT_ytEOij38-P0vWOuo';
 const db = window.supabase.createClient(SUPA_URL, SUPA_KEY);
@@ -213,8 +242,9 @@ const tempLabel = t => 'Temp. ' + pad2(t) + '-' + pad2(t + 1);  // ej: 2024 -> "
 const yLabel = tempLabel;
 const calc = (ing, costo) => { const r = ing - costo; const m = ing > 0 ? r/ing*100 : (costo > 0 ? -100 : 0); return { resultado: r, margen: Math.round(m*10)/10 }; };
 
-function kpiHTML(label, value, sub, danger) {
-  return '<div class="card"><div class="p-5">' +
+function kpiHTML(label, value, sub, danger, color) {
+  const border = color ? 'border-left:4px solid ' + color : '';
+  return '<div class="card" style="' + border + '"><div class="p-5">' +
     '<p class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2 truncate">' + label + '</p>' +
     '<p class="text-xl font-extrabold tracking-tight truncate ' + (danger?'text-red-500':'text-gray-900') + '" style="font-variant-numeric:tabular-nums;letter-spacing:-0.02em">' + value + '</p>' +
     (sub ? '<p class="text-xs text-gray-400 mt-2.5 truncate">' + sub + '</p>' : '') +
@@ -410,6 +440,36 @@ function eerrCardHTML(id, title) {
     '</div></div>';
 }
 
+// Gráfico "Costos por cuenta" (barras por cuenta contable) — mismo formato que maquinaria.
+function renderTipoChart(canvasId, scope, subId, subLabel) {
+  scope = scope || {};
+  const byC = {};
+  RAW_CUENTA.forEach(r => {
+    if (r.tipo !== 'costos') return;
+    if (r.temp !== state.year) return;
+    if (state.month !== 0 && r.mes !== state.month) return;
+    if (scope.grupo && r.grupo !== scope.grupo) return;
+    if (scope.cod && r.cod !== scope.cod) return;
+    const k = r.n_cuenta || 'Sin cuenta';
+    byC[k] = (byC[k] || 0) + r.monto;
+  });
+  const list = Object.entries(byC).filter(([,v]) => Math.abs(v) >= 1).sort((a,b) => b[1] - a[1]);
+  if (subId) { const e = document.getElementById(subId); if (e) e.textContent = subLabel || (periodoLabel() + ' · ' + list.length + ' cuentas'); }
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  if (charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(canvas, {
+    type:'bar',
+    data:{ labels:list.map(([n]) => n.length>22?n.slice(0,22)+'…':n),
+      datasets:[{ label:'Costo', data:list.map(([,v]) => v), backgroundColor:list.map((_,i) => COLORS[i%COLORS.length]), borderRadius:6 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx => fM(ctx.raw)}}, datalabels:{...DL_MONEY, color:'#1f2937'} },
+      scales:{ y:{ticks:{callback:v => fM(v)},grid:{color:'#E2E8F0'}}, x:{grid:{display:false},ticks:{font:{size:9},maxRotation:45,minRotation:45}} }
+    }
+  });
+}
+
 function makeGlobalPills() {
   const c = document.getElementById('year-pills-global');
   c.innerHTML = '';
@@ -473,10 +533,10 @@ function renderGeneral() {
   const pd = getFilteredAnual();
   const pdCC = getFilteredCC().filter(c => c.ingreso !== 0 || c.costo !== 0);
   document.getElementById('kpis-general').innerHTML =
-    kpiHTML('Ingresos ' + periodoLabel(), fM(pd.ingreso), pdCC.length + ' cuarteles activos') +
-    kpiHTML('Costos ' + periodoLabel(), fM(pd.costo), 'Operativos directos', true) +
-    kpiHTML('Resultado ' + periodoLabel(), fM(pd.resultado), 'Margen: ' + fPct(pd.margen), pd.resultado < 0) +
-    kpiHTML('CC activos', String(pdCC.length), pdCC.filter(c=>c.resultado>0).length + ' rentables · ' + pdCC.filter(c=>c.resultado<0).length + ' en pérdida');
+    kpiHTML('Ingresos ' + periodoLabel(), fM(pd.ingreso), pdCC.length + ' cuarteles activos', false, '#166534') +
+    kpiHTML('Costos ' + periodoLabel(), fM(pd.costo), 'Operativos directos', true, '#EF4444') +
+    kpiHTML('Resultado ' + periodoLabel(), fM(pd.resultado), 'Margen: ' + fPct(pd.margen), pd.resultado < 0, pd.resultado>=0?'#10B981':'#EF4444') +
+    kpiHTML('CC activos', String(pdCC.length), pdCC.filter(c=>c.resultado>0).length + ' rentables · ' + pdCC.filter(c=>c.resultado<0).length + ' en pérdida', false, '#0369a1');
 
   let html = '<thead><tr><th class="py-2 px-3 text-left text-xs font-bold uppercase text-gray-400 border-b-2 border-gray-100"></th>';
   ra.forEach(r => { html += '<th class="py-2 px-3 text-right text-xs font-bold uppercase text-gray-400 border-b-2 border-gray-100">' + yLabel(r.ano) + '</th>'; });
@@ -502,18 +562,17 @@ function renderGeneral() {
   charts.anual = new Chart(document.getElementById('chart-anual'), {
     type:'bar',
     data:{labels:ra.map(r=>yLabel(r.ano)),datasets:[
-      {label:'Ingresos',data:ra.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6},
-      {label:'Costos',data:ra.map(r=>r.costo),backgroundColor:'#EF4444',borderRadius:6},
-      {label:'Resultado',data:ra.map(r=>r.resultado),type:'line',borderColor:'#F59E0B',backgroundColor:'#F59E0B',pointRadius:6,pointBackgroundColor:'#F59E0B',borderWidth:3,fill:false},
+      {type:'bar', label:'Ingresos',data:ra.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6,order:2},
+      {type:'line',label:'Costos',  data:ra.map(r=>r.costo),  borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.08)',fill:true,tension:0.4,pointRadius:5,pointBackgroundColor:'#EF4444',order:1},
     ]},
-    options:{responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},legend:{labels:{usePointStyle:true,pointStyle:'circle',font:{size:11,weight:600}}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false},ticks:{font:{size:12,weight:600}}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},datalabels:DL_MONEY},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false},ticks:{font:{size:12,weight:600}}}}}
   });
 
   if (charts.margen) charts.margen.destroy();
   charts.margen = new Chart(document.getElementById('chart-margen'), {
     type:'bar',
     data:{labels:ra.map(r=>yLabel(r.ano)),datasets:[{label:'Margen %',data:ra.map(r=>r.margen),backgroundColor:ra.map(r=>r.margen>=0?'#10B981':'#EF4444'),borderRadius:6}]},
-    options:{responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>fPct(ctx.raw)}},legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:ctx=>fPct(ctx.raw)}},legend:{display:false},datalabels:DL_PCT},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
   });
 
   if (charts.sectores) charts.sectores.destroy();
@@ -526,13 +585,13 @@ function renderGeneral() {
   charts.sectores = new Chart(document.getElementById('chart-sectores'), {
     type:'bar',
     data:{labels:labelsS,datasets:[
-      {label:'Ingresos',data:labelsS.map(u=>sectorTotals[u].ing),backgroundColor:PRIMARY,borderRadius:4},
-      {label:'Costos',data:labelsS.map(u=>sectorTotals[u].costo),backgroundColor:'#EF4444',borderRadius:4},
-      {label:'Resultado',data:labelsS.map(u=>sectorTotals[u].res),type:'line',borderColor:'#F59E0B',pointRadius:6,pointBackgroundColor:'#F59E0B',borderWidth:3,fill:false},
+      {type:'bar', label:'Ingresos',data:labelsS.map(u=>sectorTotals[u].ing),backgroundColor:PRIMARY,borderRadius:4,order:2},
+      {type:'line',label:'Costos',  data:labelsS.map(u=>sectorTotals[u].costo),borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.08)',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:'#EF4444',order:1},
     ]},
-    options:{responsive:true,onClick:(e,els)=>{ if(els.length){ state.selectedSector=labelsS[els[0].index]; switchTab('sector'); }},plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},legend:{labels:{usePointStyle:true,pointStyle:'circle',font:{size:11,weight:600}}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false},ticks:{font:{size:11,weight:600}}}}}
+    options:{responsive:true,maintainAspectRatio:false,onClick:(e,els)=>{ if(els.length){ state.selectedSector=labelsS[els[0].index]; switchTab('sector'); }},plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},datalabels:DL_MONEY},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false},ticks:{font:{size:11,weight:600}}}}}
   });
 
+  renderTipoChart('chart-tipo-general', {}, 'tipo-general-sub', periodoLabel() + ' · todos los sectores');
   renderEERR('eerr-general', 'eerr-general-sub', {}, periodoLabel() + ' · todos los sectores · Fuente: Libro Mayor');
 }
 
@@ -545,27 +604,26 @@ function renderMensual() {
   const tr = ti - tc, tm = ti > 0 ? tr/ti*100 : 0;
   const mejor = meses.length ? meses.reduce((a,b)=>a.resultado>b.resultado?a:b) : null;
   document.getElementById('kpis-mensual').innerHTML =
-    kpiHTML('Ingresos ' + yLabel(y), fM(ti), meses.length + ' meses') +
-    kpiHTML('Costos ' + yLabel(y), fM(tc), '', true) +
-    kpiHTML('Resultado ' + yLabel(y), fM(tr), 'Margen: ' + fPct(tm), tr < 0) +
-    kpiHTML('Mejor mes', mejor ? MESES[mejor.mes] : '-', mejor ? fM(mejor.resultado) : '');
+    kpiHTML('Ingresos ' + yLabel(y), fM(ti), meses.length + ' meses', false, '#166534') +
+    kpiHTML('Costos ' + yLabel(y), fM(tc), '', true, '#EF4444') +
+    kpiHTML('Resultado ' + yLabel(y), fM(tr), 'Margen: ' + fPct(tm), tr < 0, tr>=0?'#10B981':'#EF4444') +
+    kpiHTML('Mejor mes', mejor ? MESES[mejor.mes] : '-', mejor ? fM(mejor.resultado) : '', false, '#0369a1');
 
   const labels = meses.map(r => MESES[r.mes]);
   if (charts.mensual) charts.mensual.destroy();
   charts.mensual = new Chart(document.getElementById('chart-mensual'), {
     type:'bar',
     data:{labels,datasets:[
-      {label:'Ingresos',data:meses.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6},
-      {label:'Costos',data:meses.map(r=>r.costo),backgroundColor:'#EF4444',borderRadius:6},
-      {label:'Resultado',data:meses.map(r=>r.resultado),type:'line',borderColor:'#F59E0B',pointRadius:5,pointBackgroundColor:'#F59E0B',borderWidth:3,fill:false},
+      {type:'bar', label:'Ingresos',data:meses.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6,order:2},
+      {type:'line',label:'Costos',  data:meses.map(r=>r.costo),  borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.06)',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:'#EF4444',order:1},
     ]},
-    options:{responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},legend:{labels:{usePointStyle:true,pointStyle:'circle',font:{size:11,weight:600}}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},datalabels:{...DL_MONEY,font:{size:8,weight:700}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
   });
   if (charts.margenMensual) charts.margenMensual.destroy();
   charts.margenMensual = new Chart(document.getElementById('chart-margen-mensual'), {
     type:'line',
     data:{labels,datasets:[{label:'Margen %',data:meses.map(r=>r.margen),borderColor:PRIMARY,backgroundColor:'rgba(22,101,52,0.1)',pointRadius:5,pointBackgroundColor:PRIMARY,borderWidth:3,fill:true,tension:0.3}]},
-    options:{responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>fPct(ctx.raw)}},legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:ctx=>fPct(ctx.raw)}},legend:{display:false},datalabels:{...DL_PCT,align:'top',anchor:'end'}},scales:{y:{ticks:{callback:v=>v+'%'},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
   });
 
   let th = '<thead><tr>' + ['Mes','Ingresos','Costos','Resultado','Margen'].map(h=>'<th class="py-2 px-2 text-left text-xs font-bold uppercase text-gray-400 border-b-2 border-gray-100">'+h+'</th>').join('') + '</tr></thead><tbody>';
@@ -580,6 +638,7 @@ function renderMensual() {
   });
   document.getElementById('tabla-mensual').innerHTML = th + '</tbody>';
 
+  renderTipoChart('chart-tipo-mensual', {}, 'tipo-mensual-sub', periodoLabel() + ' · todos los sectores');
   renderEERR('eerr-mensual', 'eerr-mensual-sub', {}, periodoLabel() + ' · todos los sectores · Fuente: Libro Mayor');
 }
 
@@ -649,7 +708,7 @@ function renderSector() {
     html += '</tbody></table></div></div>';
 
     if (cc_ubic.length > 0) {
-      html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-4">Resultado por cuartel · ' + u + ' · ' + periodoLabel() + '</h3><canvas id="chart-sector-detalle" height="180"></canvas></div></div>';
+      html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-4">Resultado por cuartel · ' + u + ' · ' + periodoLabel() + '</h3><div style="position:relative;height:' + Math.max(220, Math.min(cc_ubic.length, 20) * 26 + 40) + 'px"><canvas id="chart-sector-detalle"></canvas></div></div></div>';
     }
     html += '<div class="mt-6">' + eerrCardHTML('eerr-sector', 'Estado de Resultado por cuenta · ' + u) + '</div>';
     document.getElementById('sector-detail').innerHTML = html;
@@ -665,7 +724,7 @@ function renderSector() {
       charts.sectorDetalle = new Chart(document.getElementById('chart-sector-detalle'), {
         type:'bar',
         data:{labels:top.map(c=>c.nombre.substring(0,40)),datasets:[{label:'Resultado',data:top.map(c=>c.resultado),backgroundColor:top.map(c=>c.resultado>=0?'#10B981':'#EF4444'),borderRadius:6}]},
-        options:{indexAxis:'y',responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>fM(ctx.raw)}},legend:{display:false}},scales:{x:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},y:{ticks:{font:{size:9,weight:500}},grid:{display:false}}}}
+        options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{tooltip:{callbacks:{label:ctx=>fM(ctx.raw)}},legend:{display:false},datalabels:{anchor:'end',align:'end',clamp:true,formatter:v=>fM(v),font:{size:8,weight:700},color:'#374151'}},scales:{x:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},y:{ticks:{font:{size:9,weight:500}},grid:{display:false}}}}
       });
     }
   }
@@ -746,9 +805,9 @@ function renderCuartel() {
     '</div></div>';
 
   html += '<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">';
-  html += '<div class="card"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-4">Evolución histórica</h3><canvas id="chart-cc-hist"></canvas></div></div>';
+  html += '<div class="card"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Evolución histórica</h3><p class="text-xs text-gray-400 mb-3">Barras = ingresos · Línea = costos · por temporada</p><div class="chart-box"><canvas id="chart-cc-hist"></canvas></div></div></div>';
   if (meses_cc.length > 0) {
-    html += '<div class="card"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-4">Mensual ' + yLabel(y) + '</h3><canvas id="chart-cc-mes"></canvas></div></div>';
+    html += '<div class="card"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Mensual ' + yLabel(y) + '</h3><p class="text-xs text-gray-400 mb-3">Barras = ingresos · Línea = costos</p><div class="chart-box"><canvas id="chart-cc-mes"></canvas></div></div></div>';
   }
   html += '</div>';
   html += '<div class="mt-6">' + eerrCardHTML('eerr-cuartel', 'Estado de Resultado por cuenta · [' + meta.cod + '] ' + meta.nombre) + '</div>';
@@ -763,11 +822,10 @@ function renderCuartel() {
     new Chart(document.getElementById('chart-cc-hist'), {
       type:'bar',
       data:{labels:histo.map(r=>yLabel(r.ano)),datasets:[
-        {label:'Ingresos',data:histo.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6},
-        {label:'Costos',data:histo.map(r=>r.costo),backgroundColor:'#EF4444',borderRadius:6},
-        {label:'Resultado',data:histo.map(r=>r.resultado),type:'line',borderColor:'#F59E0B',pointRadius:5,pointBackgroundColor:'#F59E0B',borderWidth:3,fill:false},
+        {type:'bar', label:'Ingresos',data:histo.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6,order:2},
+        {type:'line',label:'Costos',  data:histo.map(r=>r.costo),  borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.08)',fill:true,tension:0.4,pointRadius:5,pointBackgroundColor:'#EF4444',order:1},
       ]},
-      options:{responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},legend:{labels:{usePointStyle:true,pointStyle:'circle',font:{size:10}}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{size:10},boxWidth:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},datalabels:{...DL_MONEY,font:{size:8,weight:700}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
     });
   }
 
@@ -775,11 +833,10 @@ function renderCuartel() {
     new Chart(document.getElementById('chart-cc-mes'), {
       type:'bar',
       data:{labels:meses_cc.map(r=>MESES[r.mes]),datasets:[
-        {label:'Ingresos',data:meses_cc.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6},
-        {label:'Costos',data:meses_cc.map(r=>r.costo),backgroundColor:'#EF4444',borderRadius:6},
-        {label:'Resultado',data:meses_cc.map(r=>r.resultado),type:'line',borderColor:'#F59E0B',pointRadius:5,pointBackgroundColor:'#F59E0B',borderWidth:3,fill:false},
+        {type:'bar', label:'Ingresos',data:meses_cc.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:6,order:2},
+        {type:'line',label:'Costos',  data:meses_cc.map(r=>r.costo),  borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.06)',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:'#EF4444',order:1},
       ]},
-      options:{responsive:true,plugins:{tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},legend:{labels:{usePointStyle:true,pointStyle:'circle',font:{size:10}}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{size:10},boxWidth:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},datalabels:{...DL_MONEY,font:{size:8,weight:700}}},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false}}}}
     });
   }
 }

@@ -4,9 +4,13 @@ Dashboard de rentabilidad de **Campo** de Chamonate. Ingresos vs costos contable
 
 ## Stack
 
-- HTML estático + Tailwind (CDN) + Chart.js + Supabase JS
+- HTML estático + Tailwind (CDN) + Chart.js + chartjs-plugin-datalabels + Supabase JS
 - Sin build · deploy en Vercel
 - URL producción: `https://3-chamonate-kpi-campo.vercel.app`
+
+## Visualizaciones
+
+Mismo sistema visual que el dashboard de Maquinaria: gráficos en contenedores de altura fija (`chart-box`), **etiquetas de datos siempre visibles** sobre barras/puntos, combo **barras (ingresos) + línea (costos)**, gráfico **"Costos por cuenta"** (barras por cuenta contable), KPIs con borde de color y el **EERR al lado del gráfico**.
 
 ## Datos (Supabase `wjbwccacjdkuejcriode`)
 
