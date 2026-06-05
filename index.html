@@ -869,7 +869,7 @@ function renderSector() {
     let html = cultivoHeaderCard(state.selectedSector + ' · ' + state.selectedCultivo, hex, tot, tc, periodoLabel() + ' · ' + list.length + ' tipos de cultivo', 'btn-cerrar-cultivo');
     let rows = '';
     list.forEach(r => rows += filaMonto(r, 'data-variedad', r.key, r.tipo, hex));
-    html += '<div class="card mt-6"><div class="p-5 overflow-x-auto"><h3 class="text-sm font-bold text-gray-700 mb-4">Tipos de cultivo · click para ver cuarteles</h3>' + tablaHTML(['Tipo de cultivo','Ingreso','Costo','Resultado','Margen'], rows) + '</div></div>';
+    html += '<div class="card mt-6"><div class="p-5 overflow-x-auto"><h3 class="text-sm font-bold text-gray-700 mb-4">Tipos de cultivo · click para ver detalle</h3>' + tablaHTML(['Tipo de cultivo','Ingreso','Costo','Resultado','Margen'], rows) + '</div></div>';
     html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos por tipo de cultivo</h3><p class="text-xs text-gray-400 mb-3">' + state.selectedSector + ' · ' + state.selectedCultivo + ' · ' + periodoLabel() + '</p><div class="chart-box"><canvas id="chart-campo"></canvas></div></div></div>';
     html += eerrTipoRow;
     cont.innerHTML = html;
@@ -881,26 +881,16 @@ function renderSector() {
     return;
   }
 
-  // ---- NIVEL 4: CUARTELES del tipo de cultivo ----
+  // ---- NIVEL 4 (hoja): DETALLE DEL TIPO DE CULTIVO ----
   const selVar = state.selectedVariedad === '—' ? null : state.selectedVariedad;
-  const inV = ccs.filter(r => (r.grupo || 'Sin campo') === state.selectedSector && (r.cultivo || 'Sin clasificar') === state.selectedCultivo && (r.variedad || '—') === state.selectedVariedad).sort((a,b) => b.resultado - a.resultado);
+  const inV = ccs.filter(r => (r.grupo || 'Sin campo') === state.selectedSector && (r.cultivo || 'Sin clasificar') === state.selectedCultivo && (r.variedad || '—') === state.selectedVariedad);
   const { tot, tc } = totalOf(inV);
   const hex = CULTIVO_COLOR[state.selectedCultivo] || DEFAULT_COLOR;
   const tlabel = tipoLabel(state.selectedCultivo, selVar);
-  let html = cultivoHeaderCard(state.selectedSector + ' · ' + tlabel, hex, tot, tc, periodoLabel() + ' · ' + inV.length + ' cuarteles', 'btn-cerrar-variedad');
-  let rows = '';
-  inV.forEach(c => rows += '<tr class="border-b border-gray-50 row-hover" data-cod="' + c.cod + '">' +
-    '<td class="py-2 px-2 font-bold text-gray-700">' + c.cod + '</td>' +
-    '<td class="py-2 px-2 text-gray-700 max-w-xs truncate">' + c.nombre + '</td>' +
-    '<td class="py-2 px-2 text-right">' + fM(c.ingreso) + '</td>' +
-    '<td class="py-2 px-2 text-right text-gray-500">' + fM(c.costo) + '</td>' +
-    '<td class="py-2 px-2 text-right font-bold ' + (c.resultado>=0?'text-emerald-600':'text-red-500') + '">' + fM(c.resultado) + '</td>' +
-    '<td class="py-2 px-2 text-right"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + (c.resultado>=0?'bg-emerald-50 text-emerald-600':'bg-red-50 text-red-500') + '">' + (c.ingreso>0?fPct(c.margen):'S/I') + '</span></td></tr>');
-  html += '<div class="card mt-6"><div class="p-5 overflow-x-auto"><h3 class="text-sm font-bold text-gray-700 mb-4">Cuarteles · click para ver detalle individual</h3>' + tablaHTML(['Cód','Cuartel','Ingreso','Costo','Resultado','Margen'], rows) + '</div></div>';
+  let html = cultivoHeaderCard('🍏 ' + state.selectedSector + ' · ' + tlabel, hex, tot, tc, periodoLabel() + ' · Fuente: Libro Mayor', 'btn-cerrar-variedad');
   html += eerrTipoRow;
   cont.innerHTML = html;
   document.getElementById('btn-cerrar-variedad').addEventListener('click', () => { state.selectedVariedad = ''; renderSector(); });
-  document.querySelectorAll('#sector-detail tbody tr[data-cod]').forEach(tr => tr.addEventListener('click', () => { state.selectedCC = tr.dataset.cod; switchTab('cuartel'); }));
   renderEERR('eerr-sector', 'eerr-sector-sub', {grupo:state.selectedSector, cultivo:state.selectedCultivo, variedad:selVar}, state.selectedSector + ' · ' + tlabel + ' · ' + periodoLabel());
   renderTipoChart('chart-tipo-sector', {grupo:state.selectedSector, cultivo:state.selectedCultivo, variedad:selVar}, 'tipo-sector-sub', tlabel + ' · ' + periodoLabel());
 }
