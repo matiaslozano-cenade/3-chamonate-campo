@@ -60,9 +60,10 @@
       </div>
       <span class="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1.5 rounded-full border border-green-400/30">🌿 Campo</span>
     </div>
-    <div class="flex gap-1 mt-4" id="tabs">
+    <div class="flex gap-1 mt-4 flex-wrap" id="tabs">
       <button data-tabid="general"  class="tab-btn active flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">📊 General</button>
       <button data-tabid="mensual"  class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">📅 Mensual</button>
+      <button data-tabid="cultivo"  class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">🍎 Por Cultivo</button>
       <button data-tabid="sector"   class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">🌾 Por Sector</button>
       <button data-tabid="cuartel"  class="tab-btn text-green-200/50 flex items-center gap-1.5 px-4 py-2 rounded-t-xl text-xs font-semibold">🔧 Por Cuartel</button>
     </div>
@@ -164,6 +165,11 @@
     </div></div>
   </div>
 
+  <!-- POR CULTIVO -->
+  <div data-tab="cultivo" class="space-y-6">
+    <div id="cultivo-content"></div>
+  </div>
+
   <!-- POR SECTOR -->
   <div data-tab="sector" class="space-y-6">
     <div id="sector-summary"></div>
@@ -219,11 +225,16 @@ const SECTOR_COLOR = {
 };
 const PRIMARY = '#166534';
 const DEFAULT_COLOR = '#94A3B8';
+const CULTIVO_COLOR = {
+  'Manzano':'#dc2626','Cerezo':'#9d174d','Ciruela':'#6d28d9','Durazno':'#ea580c','Nectarín':'#f59e0b','Caqui':'#d97706','Hortalizas':'#16a34a',
+  'Administración':'#475569','Riego/Infraestructura':'#0891b2','Producción general':'#0f766e','Maquinaria':'#7c3aed','Inversión':'#b45309'
+};
 
 let SECTORES_ORDEN = [];
+let CULTIVOS_ORDEN = [];
 let DATA = null;
 let RAW_CUENTA = [];
-let state = { year: 2025, month: 0, selectedSector: '', selectedCC: '' };
+let state = { year: 2025, month: 0, selectedSector: '', selectedCC: '', selectedCultivo: '', selectedVariedad: '' };
 let charts = {};
 
 const fCLP = v => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP',minimumFractionDigits:0}).format(v);
@@ -286,7 +297,7 @@ async function initData() {
 
   const [grupoRes, catRes] = await Promise.all([
     db.from('v_3_campo_grupo').select('*'),
-    db.from('3_chamonate_centros_costo').select('cod,nombre,grupo').eq('linea_negocio','campo')
+    db.from('3_chamonate_centros_costo').select('cod,lm_cod,nombre,grupo,cultivo,variedad').eq('linea_negocio','campo')
   ]);
 
   if (grupoRes.error || catRes.error) {
@@ -297,10 +308,16 @@ async function initData() {
   const grupoRows = grupoRes.data;
   const catRows = catRes.data;
 
-  const catalogo = catRows.map(r => ({ cod: r.cod, nombre: r.nombre, grupo: r.grupo }));
+  const catalogo = catRows.map(r => ({ cod: r.cod, nombre: r.nombre, grupo: r.grupo, cultivo: r.cultivo, variedad: r.variedad }));
+
+  // Mapa cod (el que usa el LM: lm_cod||cod) -> {cultivo, variedad} para enriquecer RAW_CUENTA
+  const CULT_BY_COD = {};
+  catRows.forEach(r => { CULT_BY_COD[r.lm_cod || r.cod] = { cultivo: r.cultivo, variedad: r.variedad }; });
+  RAW_CUENTA.forEach(r => { const m = CULT_BY_COD[r.cod]; r.cultivo = m ? m.cultivo : null; r.variedad = m ? m.variedad : null; });
 
   const sectoresSet = new Set(catRows.map(r => r.grupo).filter(Boolean));
   SECTORES_ORDEN = [...sectoresSet].sort();
+  CULTIVOS_ORDEN = [...new Set(catRows.map(r => r.cultivo).filter(Boolean))].sort();
 
   // NOTA: el campo `ano` en los resúmenes representa la TEMPORADA (año de inicio, may->abr),
   // no el año calendario. `mes` se mantiene como mes contable real (1-12) para drill-down y CSV.
@@ -308,7 +325,7 @@ async function initData() {
   ccRows.forEach(r => {
     const t = tempOf(+r.ano, +r.mes);
     const k = r.cod + '-' + t;
-    if (!ccAnnMap[k]) ccAnnMap[k] = { cod:r.cod, nombre:r.nombre, grupo:r.grupo, ano:t, ingreso:0, costo:0 };
+    if (!ccAnnMap[k]) ccAnnMap[k] = { cod:r.cod, nombre:r.nombre, grupo:r.grupo, cultivo:r.cultivo, variedad:r.variedad, ano:t, ingreso:0, costo:0 };
     ccAnnMap[k].ingreso += +r.ingresos;
     ccAnnMap[k].costo  += +r.costos;
   });
@@ -316,7 +333,7 @@ async function initData() {
 
   const resumen_cc_mes = ccRows.map(r => {
     const ing = +r.ingresos, cos = +r.costos;
-    return { cod:r.cod, nombre:r.nombre, grupo:r.grupo, ano:tempOf(+r.ano,+r.mes), mes:+r.mes, ingreso:ing, costo:cos, ...calc(ing, cos) };
+    return { cod:r.cod, nombre:r.nombre, grupo:r.grupo, cultivo:r.cultivo, variedad:r.variedad, ano:tempOf(+r.ano,+r.mes), mes:+r.mes, ingreso:ing, costo:cos, ...calc(ing, cos) };
   });
 
   const mensMap = {};
@@ -403,6 +420,8 @@ function eerrData(scope) {
     if (state.month !== 0 && r.mes !== state.month) return;
     if (scope.grupo && r.grupo !== scope.grupo) return;
     if (scope.cod && r.cod !== scope.cod) return;
+    if (scope.cultivo && r.cultivo !== scope.cultivo) return;
+    if (scope.variedad && r.variedad !== scope.variedad) return;
     if (r.tipo === 'ingresos') ing += r.monto;
     else { const k = r.n_cuenta || 'Sin cuenta'; cByC[k] = (cByC[k] || 0) + r.monto; }
   });
@@ -450,6 +469,8 @@ function renderTipoChart(canvasId, scope, subId, subLabel) {
     if (state.month !== 0 && r.mes !== state.month) return;
     if (scope.grupo && r.grupo !== scope.grupo) return;
     if (scope.cod && r.cod !== scope.cod) return;
+    if (scope.cultivo && r.cultivo !== scope.cultivo) return;
+    if (scope.variedad && r.variedad !== scope.variedad) return;
     const k = r.n_cuenta || 'Sin cuenta';
     byC[k] = (byC[k] || 0) + r.monto;
   });
@@ -507,6 +528,7 @@ function switchTab(id) {
   updateBreadcrumb(id);
   if (id === 'general')  renderGeneral();
   if (id === 'mensual')  renderMensual();
+  if (id === 'cultivo')  renderCultivo();
   if (id === 'sector')   renderSector();
   if (id === 'cuartel')  renderCuartel();
 }
@@ -514,9 +536,13 @@ function switchTab(id) {
 document.querySelectorAll('#tabs .tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tabid)));
 
 function updateBreadcrumb(tabId) {
-  const map = {general:'General', mensual:'Mensual', sector:'Por Sector', cuartel:'Por Cuartel'};
+  const map = {general:'General', mensual:'Mensual', cultivo:'Por Cultivo', sector:'Por Sector', cuartel:'Por Cuartel'};
   let parts = ['<span class="breadcrumb-item">Inicio</span>'];
   parts.push('<span class="text-gray-300">→</span><span class="breadcrumb-item font-semibold text-gray-600">' + (map[tabId] || tabId) + '</span>');
+  if (tabId === 'cultivo' && state.selectedCultivo) {
+    parts.push('<span class="text-gray-300">→</span><span class="font-semibold" style="color:#166534">' + state.selectedCultivo + '</span>');
+    if (state.selectedVariedad) parts.push('<span class="text-gray-300">→</span><span class="font-semibold" style="color:#166534">' + state.selectedVariedad + '</span>');
+  }
   if (tabId === 'sector' && state.selectedSector) parts.push('<span class="text-gray-300">→</span><span class="font-semibold" style="color:#166534">' + state.selectedSector + '</span>');
   if (tabId === 'cuartel' && state.selectedCC) {
     const m = DATA.catalogo.find(x => x.cod === state.selectedCC);
@@ -640,6 +666,132 @@ function renderMensual() {
 
   renderTipoChart('chart-tipo-mensual', {}, 'tipo-mensual-sub', periodoLabel() + ' · todos los sectores');
   renderEERR('eerr-mensual', 'eerr-mensual-sub', {}, periodoLabel() + ' · todos los sectores · Fuente: Libro Mayor');
+}
+
+// =========== POR CULTIVO ===========
+function cultivoHeaderCard(titulo, hex, tot, tc, sub, btnId) {
+  return '<div class="card"><div class="p-5">' +
+    '<div class="flex items-center justify-between mb-4">' +
+    '<div><h2 class="text-base font-bold text-gray-800">' + titulo + '</h2>' +
+    '<p class="text-xs text-gray-400">' + sub + '</p></div>' +
+    '<button id="' + btnId + '" class="text-gray-400 hover:text-gray-600 text-lg">✕</button>' +
+    '</div>' +
+    '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
+    '<div class="bg-blue-50 rounded-xl p-3 text-center"><p class="text-xs text-blue-400 font-semibold mb-1">Ingreso</p><p class="text-lg font-extrabold text-blue-700">' + fM(tot.i) + '</p></div>' +
+    '<div class="bg-red-50 rounded-xl p-3 text-center"><p class="text-xs text-red-400 font-semibold mb-1">Costo</p><p class="text-lg font-extrabold text-red-600">' + fM(tot.c) + '</p></div>' +
+    '<div class="bg-' + (tc.resultado>=0?'emerald':'red') + '-50 rounded-xl p-3 text-center"><p class="text-xs text-' + (tc.resultado>=0?'emerald':'red') + '-400 font-semibold mb-1">Resultado</p><p class="text-lg font-extrabold text-' + (tc.resultado>=0?'emerald':'red') + '-700">' + fM(tc.resultado) + '</p></div>' +
+    '<div class="bg-amber-50 rounded-xl p-3 text-center"><p class="text-xs text-amber-500 font-semibold mb-1">Margen</p><p class="text-lg font-extrabold text-amber-700">' + (tot.i>0?fPct(tc.margen):'S/I') + '</p></div>' +
+    '</div></div></div>';
+}
+
+function drawResultadoBar(canvasId, items, labelKey) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  if (charts[canvasId]) charts[canvasId].destroy();
+  charts[canvasId] = new Chart(c, {
+    type:'bar',
+    data:{ labels:items.map(r => r[labelKey]), datasets:[
+      {type:'bar', label:'Ingresos',data:items.map(r=>r.ingreso),backgroundColor:PRIMARY,borderRadius:4,order:2},
+      {type:'line',label:'Costos',  data:items.map(r=>r.costo),  borderColor:'#EF4444',backgroundColor:'rgba(239,68,68,0.08)',fill:true,tension:0.35,pointRadius:4,pointBackgroundColor:'#EF4444',order:1},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'top',labels:{font:{size:11},boxWidth:12}},tooltip:{mode:'index',intersect:false,callbacks:{label:ctx=>ctx.dataset.label+': '+fM(ctx.raw)}},datalabels:DL_MONEY},scales:{y:{ticks:{callback:v=>fM(v)},grid:{color:'#E2E8F0'}},x:{grid:{display:false},ticks:{font:{size:10,weight:600}}}}}
+  });
+}
+
+function renderCultivo() {
+  updateBreadcrumb('cultivo');
+  const ccs = getFilteredCC().filter(r => r.ingreso !== 0 || r.costo !== 0);
+  const cont = document.getElementById('cultivo-content');
+  const eerrTipoRow = '<div class="grid lg:grid-cols-2 gap-6 mt-6">' +
+    '<div class="card" style="border-color:#dcfce7"><div class="p-5 overflow-x-auto"><h3 class="text-sm font-bold text-gray-700 mb-1">📑 Estado de Resultado por cuenta</h3><p class="text-xs text-gray-400 mb-3" id="eerr-cultivo-sub"></p><div class="overflow-x-auto" id="eerr-cultivo"></div></div></div>' +
+    '<div class="card"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Costos por cuenta</h3><p class="text-xs text-gray-400 mb-3" id="tipo-cultivo-sub"></p><div class="chart-box sm"><canvas id="chart-tipo-cultivo"></canvas></div></div></div>' +
+    '</div>';
+
+  // ---- NIVEL 1: cultivos ----
+  if (!state.selectedCultivo) {
+    const agg = {};
+    ccs.forEach(r => { const k = r.cultivo || 'Sin clasificar'; if (!agg[k]) agg[k] = {cultivo:k, ingreso:0, costo:0}; agg[k].ingreso += r.ingreso; agg[k].costo += r.costo; });
+    const list = Object.values(agg).map(r => ({ ...r, ...calc(r.ingreso, r.costo) })).sort((a,b) => b.costo - a.costo);
+    let html = '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">';
+    list.forEach(r => {
+      const hex = CULTIVO_COLOR[r.cultivo] || DEFAULT_COLOR;
+      html += '<div class="level-card card p-5" data-cultivo="' + r.cultivo + '">' +
+        '<div class="flex items-center gap-3 mb-3"><div class="w-3 h-3 rounded-full" style="background:' + hex + '"></div><h3 class="text-sm font-bold text-gray-800 truncate">' + r.cultivo + '</h3></div>' +
+        '<div class="mt-3 grid grid-cols-2 gap-2 text-xs"><div><p class="text-gray-400 font-semibold">Ingreso</p><p class="font-bold text-gray-700">' + fM(r.ingreso) + '</p></div><div><p class="text-gray-400 font-semibold">Costo</p><p class="font-bold text-gray-700">' + fM(r.costo) + '</p></div></div>' +
+        '<div class="mt-3 pt-3 border-t border-gray-100"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + (r.resultado>=0?'bg-emerald-50 text-emerald-600':'bg-red-50 text-red-500') + '">Margen ' + (r.ingreso>0?fPct(r.margen):'S/I') + '</span><span class="ml-2 text-xs text-gray-400">Click para variedades →</span></div>' +
+        '</div>';
+    });
+    html += '</div>';
+    html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos por cultivo</h3><p class="text-xs text-gray-400 mb-3">' + periodoLabel() + '</p><div class="chart-box"><canvas id="chart-cultivo"></canvas></div></div></div>';
+    html += eerrTipoRow;
+    cont.innerHTML = html;
+    document.querySelectorAll('#cultivo-content .level-card').forEach(c => c.addEventListener('click', () => { state.selectedCultivo = c.dataset.cultivo; state.selectedVariedad = ''; renderCultivo(); }));
+    drawResultadoBar('chart-cultivo', list, 'cultivo');
+    renderEERR('eerr-cultivo', 'eerr-cultivo-sub', {}, periodoLabel() + ' · todos los cultivos · Fuente: Libro Mayor');
+    renderTipoChart('chart-tipo-cultivo', {}, 'tipo-cultivo-sub', periodoLabel() + ' · todos los cultivos');
+    return;
+  }
+
+  // ---- NIVEL 2: variedades del cultivo ----
+  if (state.selectedCultivo && !state.selectedVariedad) {
+    const inCult = ccs.filter(r => (r.cultivo || 'Sin clasificar') === state.selectedCultivo);
+    const agg = {};
+    inCult.forEach(r => { const k = r.variedad || '(sin variedad)'; if (!agg[k]) agg[k] = {variedad:k, ingreso:0, costo:0}; agg[k].ingreso += r.ingreso; agg[k].costo += r.costo; });
+    const list = Object.values(agg).map(r => ({ ...r, ...calc(r.ingreso, r.costo) })).sort((a,b) => b.costo - a.costo);
+    const tot = inCult.reduce((a,r) => ({i:a.i+r.ingreso, c:a.c+r.costo}), {i:0,c:0});
+    const tc = calc(tot.i, tot.c);
+    const hex = CULTIVO_COLOR[state.selectedCultivo] || DEFAULT_COLOR;
+    let html = cultivoHeaderCard('🍎 ' + state.selectedCultivo, hex, tot, tc, periodoLabel() + ' · ' + list.length + ' variedades', 'btn-cerrar-cultivo');
+    html += '<div class="card mt-6"><div class="p-5 overflow-x-auto"><h3 class="text-sm font-bold text-gray-700 mb-4">Variedades · click para ver cuarteles</h3>';
+    html += '<table class="w-full text-xs"><thead><tr>' + ['Variedad','Ingreso','Costo','Resultado','Margen'].map(h=>'<th class="text-left py-2.5 px-2 text-xs font-bold uppercase text-gray-400 border-b-2 border-gray-100">'+h+'</th>').join('') + '</tr></thead><tbody>';
+    list.forEach(v => {
+      html += '<tr class="border-b border-gray-50 row-hover" data-variedad="' + v.variedad + '">' +
+        '<td class="py-2 px-2 font-semibold text-gray-700">' + v.variedad + '</td>' +
+        '<td class="py-2 px-2 text-right">' + fM(v.ingreso) + '</td>' +
+        '<td class="py-2 px-2 text-right text-gray-500">' + fM(v.costo) + '</td>' +
+        '<td class="py-2 px-2 text-right font-bold ' + (v.resultado>=0?'text-emerald-600':'text-red-500') + '">' + fM(v.resultado) + '</td>' +
+        '<td class="py-2 px-2 text-right"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + (v.resultado>=0?'bg-emerald-50 text-emerald-600':'bg-red-50 text-red-500') + '">' + (v.ingreso>0?fPct(v.margen):'S/I') + '</span></td>' +
+        '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+    html += '<div class="card mt-6"><div class="p-5"><h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos por variedad · ' + state.selectedCultivo + '</h3><p class="text-xs text-gray-400 mb-3">' + periodoLabel() + '</p><div class="chart-box"><canvas id="chart-variedad"></canvas></div></div></div>';
+    html += eerrTipoRow;
+    cont.innerHTML = html;
+    document.getElementById('btn-cerrar-cultivo').addEventListener('click', () => { state.selectedCultivo = ''; renderCultivo(); });
+    document.querySelectorAll('#cultivo-content tbody tr[data-variedad]').forEach(tr => tr.addEventListener('click', () => { state.selectedVariedad = tr.dataset.variedad; renderCultivo(); }));
+    drawResultadoBar('chart-variedad', list, 'variedad');
+    renderEERR('eerr-cultivo', 'eerr-cultivo-sub', {cultivo:state.selectedCultivo}, state.selectedCultivo + ' · ' + periodoLabel() + ' · Fuente: Libro Mayor');
+    renderTipoChart('chart-tipo-cultivo', {cultivo:state.selectedCultivo}, 'tipo-cultivo-sub', state.selectedCultivo + ' · ' + periodoLabel());
+    return;
+  }
+
+  // ---- NIVEL 3: cuarteles de la variedad ----
+  const inVar = ccs.filter(r => (r.cultivo || 'Sin clasificar') === state.selectedCultivo && (r.variedad || '(sin variedad)') === state.selectedVariedad).sort((a,b) => b.resultado - a.resultado);
+  const tot = inVar.reduce((a,r) => ({i:a.i+r.ingreso, c:a.c+r.costo}), {i:0,c:0});
+  const tc = calc(tot.i, tot.c);
+  const hex = CULTIVO_COLOR[state.selectedCultivo] || DEFAULT_COLOR;
+  let html = cultivoHeaderCard(state.selectedCultivo + ' · ' + state.selectedVariedad, hex, tot, tc, periodoLabel() + ' · ' + inVar.length + ' cuarteles', 'btn-cerrar-variedad');
+  html += '<div class="card mt-6"><div class="p-5 overflow-x-auto"><h3 class="text-sm font-bold text-gray-700 mb-4">Cuarteles · click para ver detalle individual</h3>';
+  html += '<table class="w-full text-xs"><thead><tr>' + ['Cód','Cuartel','Sector','Ingreso','Costo','Resultado','Margen'].map(h=>'<th class="text-left py-2.5 px-2 text-xs font-bold uppercase text-gray-400 border-b-2 border-gray-100">'+h+'</th>').join('') + '</tr></thead><tbody>';
+  inVar.forEach(c => {
+    const gc = SECTOR_COLOR[c.grupo] || DEFAULT_COLOR;
+    html += '<tr class="border-b border-gray-50 row-hover" data-cod="' + c.cod + '">' +
+      '<td class="py-2 px-2 font-bold text-gray-700">' + c.cod + '</td>' +
+      '<td class="py-2 px-2 text-gray-700 max-w-xs truncate">' + c.nombre + '</td>' +
+      '<td class="py-2 px-2"><span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:' + gc + '20;color:' + gc + '">' + c.grupo + '</span></td>' +
+      '<td class="py-2 px-2 text-right">' + fM(c.ingreso) + '</td>' +
+      '<td class="py-2 px-2 text-right text-gray-500">' + fM(c.costo) + '</td>' +
+      '<td class="py-2 px-2 text-right font-bold ' + (c.resultado>=0?'text-emerald-600':'text-red-500') + '">' + fM(c.resultado) + '</td>' +
+      '<td class="py-2 px-2 text-right"><span class="px-2 py-0.5 rounded-full text-xs font-bold ' + (c.resultado>=0?'bg-emerald-50 text-emerald-600':'bg-red-50 text-red-500') + '">' + (c.ingreso>0?fPct(c.margen):'S/I') + '</span></td>' +
+      '</tr>';
+  });
+  html += '</tbody></table></div></div>';
+  html += eerrTipoRow;
+  cont.innerHTML = html;
+  document.getElementById('btn-cerrar-variedad').addEventListener('click', () => { state.selectedVariedad = ''; renderCultivo(); });
+  document.querySelectorAll('#cultivo-content tbody tr[data-cod]').forEach(tr => tr.addEventListener('click', () => { state.selectedCC = tr.dataset.cod; switchTab('cuartel'); }));
+  renderEERR('eerr-cultivo', 'eerr-cultivo-sub', {cultivo:state.selectedCultivo, variedad:state.selectedVariedad}, state.selectedCultivo + ' · ' + state.selectedVariedad + ' · ' + periodoLabel() + ' · Fuente: Libro Mayor');
+  renderTipoChart('chart-tipo-cultivo', {cultivo:state.selectedCultivo, variedad:state.selectedVariedad}, 'tipo-cultivo-sub', state.selectedVariedad + ' · ' + periodoLabel());
 }
 
 // =========== POR SECTOR ===========

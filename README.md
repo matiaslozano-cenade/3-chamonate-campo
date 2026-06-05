@@ -34,7 +34,15 @@ Campo **no** se analiza por año calendario (ene–dic) sino por **temporada agr
 
 ## Pestañas
 
-General · Mensual · Por Sector · Por Cuartel. Cada una termina con un **Estado de Resultado (EERR) por cuenta** que respeta el filtro activo (temporada · mes · sector · cuartel): Ingresos → costos desglosados por cuenta → Total costos → Resultado → Margen %.
+General · Mensual · **Por Cultivo** · Por Sector · Por Cuartel. Cada una termina con un **Estado de Resultado (EERR) por cuenta** que respeta el filtro activo (temporada · mes · cultivo · variedad · sector · cuartel): Ingresos → costos desglosados por cuenta → Total costos → Resultado → Margen %.
+
+## Segregación por cultivo / variedad
+
+Cada centro de costo está clasificado en el catálogo (`3_chamonate_centros_costo`) con dos columnas:
+- **`cultivo`**: especie productiva (Manzano, Cerezo, Ciruela, Durazno, Nectarín, Caqui, Hortalizas) o, para overhead, la función (Administración, Riego/Infraestructura, Producción general, Maquinaria, Inversión).
+- **`variedad`**: variedad canónica (Manzano → Gala / Royal Gala / Pink Lady / Granny Smith / Rosy Glow / Brookfield…; Cerezo → Santina / Regina-Skeena / Lapins / Frisco / Gartayro).
+
+La clasificación se hizo por patrón sobre el nombre del cuartel y vive en el catálogo: corregir una fila reclasifica todo el dashboard. La pestaña **Por Cultivo** hace drill **Cultivo → Variedad → Cuartel**. Las columnas `cultivo`/`variedad` se exponen en la vista `v_3_campo_cc`.
 
 ## Reglas de negocio (contables)
 
