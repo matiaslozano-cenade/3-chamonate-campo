@@ -51,7 +51,7 @@
     <div class="flex items-center justify-between">
       <div>
         <h1 class="text-white text-lg font-extrabold tracking-tight">Proyecto Chamonate · Rentabilidad CAMPO</h1>
-        <p class="text-green-300/60 text-xs font-medium">Fuente: Libro Mayor · Temporada agrícola may–abr</p>
+        <p class="text-green-300/60 text-xs font-medium">Fuente: Libro Mayor · Temporada agrícola jun–may</p>
       </div>
       <span class="bg-green-500/20 text-green-300 text-xs font-bold px-3 py-1.5 rounded-full border border-green-400/30">🌿 Campo</span>
     </div>
@@ -95,7 +95,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div class="card lg:col-span-2"><div class="p-5">
         <h3 class="text-sm font-bold text-gray-700 mb-1">Ingresos vs Costos · Resultado</h3>
-        <p class="text-xs text-gray-400 mb-4">Comparativa por temporada (may–abr) · Libro Mayor</p>
+        <p class="text-xs text-gray-400 mb-4">Comparativa por temporada (jun–may) · Libro Mayor</p>
         <canvas id="chart-anual" height="160"></canvas>
       </div></div>
       <div class="card"><div class="p-5">
@@ -201,12 +201,12 @@ const fCLP = v => new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP'
 const fM = v => { const a=Math.abs(v),s=v<0?'-':''; if(a>=1e9) return s+'$'+(a/1e9).toFixed(1).replace('.',',')+' B'; if(a>=1e6) return s+'$'+(a/1e6).toFixed(1).replace('.',',')+' M'; if(a>=1e3) return s+'$'+(a/1e3).toFixed(0)+' K'; return s+'$'+a; };
 const fN = v => new Intl.NumberFormat('es-CL').format(Math.round(v));
 const fPct = v => v.toFixed(1).replace('.',',')+'%';
-// ===== TEMPORADA AGRÍCOLA (mayo → abril) =====
-// La temporada T abarca de mayo del año T a abril del año T+1.
-// mes >= 5 (may..dic) pertenece a la temporada del mismo año; mes <= 4 (ene..abr) a la del año anterior.
-const TEMP_ORDER = [5,6,7,8,9,10,11,12,1,2,3,4]; // orden de meses dentro de una temporada
-const tempOf = (ano, mes) => mes >= 5 ? ano : ano - 1;          // temporada (año de inicio) de un (año,mes) contable
-const anoForTempMonth = (temp, mes) => mes >= 5 ? temp : temp + 1; // año contable real de un mes dentro de una temporada
+// ===== TEMPORADA AGRÍCOLA (junio → mayo) =====
+// La temporada T abarca del 1 de junio del año T al 31 de mayo del año T+1.
+// mes >= 6 (jun..dic) pertenece a la temporada del mismo año; mes <= 5 (ene..may) a la del año anterior.
+const TEMP_ORDER = [6,7,8,9,10,11,12,1,2,3,4,5]; // orden de meses dentro de una temporada
+const tempOf = (ano, mes) => mes >= 6 ? ano : ano - 1;          // temporada (año de inicio) de un (año,mes) contable
+const anoForTempMonth = (temp, mes) => mes >= 6 ? temp : temp + 1; // año contable real de un mes dentro de una temporada
 const tempMonthIdx = mes => TEMP_ORDER.indexOf(+mes);          // posición del mes en el orden de temporada
 const pad2 = n => String(((n % 100) + 100) % 100).padStart(2, '0');
 const tempLabel = t => 'Temp. ' + pad2(t) + '-' + pad2(t + 1);  // ej: 2024 -> "Temp. 24-25"
@@ -805,8 +805,8 @@ async function loadMovimientos(cod, nombre) {
   if (state.month > 0) {
     query = query.eq('ano_contable', anoForTempMonth(t, state.month)).eq('mes_contable', state.month);
   } else {
-    // temporada may->abr: (año t, meses 5-12) o (año t+1, meses 1-4)
-    query = query.or('and(ano_contable.eq.' + t + ',mes_contable.gte.5),and(ano_contable.eq.' + (t + 1) + ',mes_contable.lte.4)');
+    // temporada jun->may: (año t, meses 6-12) o (año t+1, meses 1-5)
+    query = query.or('and(ano_contable.eq.' + t + ',mes_contable.gte.6),and(ano_contable.eq.' + (t + 1) + ',mes_contable.lte.5)');
   }
 
   const { data, error } = await query;
@@ -911,7 +911,7 @@ async function downloadDetalle(params) {
     if (ano && mes && mes > 0) {
       q = q.eq('ano_contable', anoForTempMonth(ano, mes)).eq('mes_contable', mes);
     } else if (ano) {
-      q = q.or('and(ano_contable.eq.' + ano + ',mes_contable.gte.5),and(ano_contable.eq.' + (ano + 1) + ',mes_contable.lte.4)');
+      q = q.or('and(ano_contable.eq.' + ano + ',mes_contable.gte.6),and(ano_contable.eq.' + (ano + 1) + ',mes_contable.lte.5)');
     }
     if (grupo) q = q.eq('cc_grupo', grupo);
     if (cod) q = q.eq('cc_cod', cod);

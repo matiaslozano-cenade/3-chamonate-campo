@@ -20,12 +20,12 @@ Dashboard de rentabilidad de **Campo** de Chamonate. Ingresos vs costos contable
 | `3_chamonate_centros_costo` (`linea_negocio='campo'`) | Catálogo de cuarteles + sector |
 | `3_chamonate_libro_mayor` | Movimientos contables (drill-down) |
 
-## Temporada agrícola (may → abr) — particularidad clave de Campo
+## Temporada agrícola (jun → may) — particularidad clave de Campo
 
-Campo **no** se analiza por año calendario (ene–dic) sino por **temporada agrícola de 12 meses, de mayo a abril**. La temporada T va de **mayo del año T a abril del año T+1** y se etiqueta `Temp. YY-YY` (ej: `Temp. 24-25` = may 2024 → abr 2025).
+Campo **no** se analiza por año calendario (ene–dic) sino por **temporada agrícola de 12 meses, del 1 de junio al 31 de mayo**. La temporada T va de **junio del año T a mayo del año T+1** y se etiqueta `Temp. YY-YY` (ej: `Temp. 24-25` = jun 2024 → may 2025).
 
-- Asignación: `temporada = (mes >= 5) ? año : año - 1` (mayo inicia la nueva temporada).
-- Todo el eje temporal del dashboard (pills, comparativo, mensual, EERR, histórico, drill-down y CSV) razona en temporadas; los meses se ordenan **may → abr**.
+- Asignación: `temporada = (mes >= 6) ? año : año - 1` (junio inicia la nueva temporada).
+- Todo el eje temporal del dashboard (pills, comparativo, mensual, EERR, histórico, drill-down y CSV) razona en temporadas; los meses se ordenan **jun → may**.
 - El drill-down al Libro Mayor y la descarga CSV traducen la temporada a los dos años contables reales que cruza.
 
 ## Pestañas
