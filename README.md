@@ -34,7 +34,10 @@ Campo **no** se analiza por año calendario (ene–dic) sino por **temporada agr
 
 ## Pestañas
 
-General · Mensual · **Por Campo** · Por Cuartel. La pestaña Por Campo es el drill jerárquico principal: **Año (temporada) → Mes → Campo (predio) → Cultivo → Tipo de cultivo → Cuartel**. Cada nivel termina con un **Estado de Resultado (EERR) por cuenta** y un gráfico "Costos por cuenta" que respetan el filtro activo: Ingresos → costos desglosados por cuenta → Total costos → Resultado → Margen %.
+General · Mensual · **Por Grupo CC** · **Por Sucursal** · Por Cuartel.
+
+- **Por Grupo CC**: resumen global (todas las sucursales) por **cultivo**, con drill **Cultivo → Tipo de cultivo**; respeta los filtros de temporada/mes. (Equivale a la fila "GRUPO CCOSTO" del Power BI.)
+- **Por Sucursal**: drill jerárquico **Sucursal (predio) → Cultivo → Tipo de cultivo**. Cada nivel termina con un **Estado de Resultado (EERR) por cuenta** y un gráfico "Costos por cuenta" que respetan el filtro activo: Ingresos → costos desglosados por cuenta → Total costos → Resultado → Margen %.
 
 ## Dimensiones: campo / cultivo / tipo de cultivo
 
