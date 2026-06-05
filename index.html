@@ -543,17 +543,29 @@ function makeMonthSelect() {
 }
 
 function makeFilterSelects() {
+  // filas del período (temporada/mes) con actividad -> solo opciones con números
+  const rows = (state.month === 0
+    ? DATA.resumen_cc.filter(r => r.ano === state.year)
+    : DATA.resumen_cc_mes.filter(r => r.ano === state.year && r.mes === state.month)
+  ).filter(r => r.ingreso !== 0 || r.costo !== 0);
+  const availSuc = SECTORES_ORDEN.filter(s => rows.some(r => r.grupo === s));
+  const availCult = CULTIVOS_ORDEN.filter(c => rows.some(r => r.cultivo === c));
+  // si la selección activa ya no tiene datos en el período, se limpia
+  if (state.fSucursal && !availSuc.includes(state.fSucursal)) state.fSucursal = '';
+  if (state.fCultivo && !availCult.includes(state.fCultivo)) state.fCultivo = '';
+
   const ss = document.getElementById('sucursal-select-global');
-  ss.innerHTML = '<option value="">Todas</option>' + SECTORES_ORDEN.map(s => '<option value="' + s + '"' + (s === state.fSucursal ? ' selected' : '') + '>' + s + '</option>').join('');
+  ss.innerHTML = '<option value="">Todas</option>' + availSuc.map(s => '<option value="' + s + '"' + (s === state.fSucursal ? ' selected' : '') + '>' + s + '</option>').join('');
   ss.value = state.fSucursal;
   ss.onchange = () => { state.fSucursal = ss.value; rerender(); };
   const cs = document.getElementById('cultivo-select-global');
-  cs.innerHTML = '<option value="">Todos</option>' + CULTIVOS_ORDEN.map(c => '<option value="' + c + '"' + (c === state.fCultivo ? ' selected' : '') + '>' + c + '</option>').join('');
+  cs.innerHTML = '<option value="">Todos</option>' + availCult.map(c => '<option value="' + c + '"' + (c === state.fCultivo ? ' selected' : '') + '>' + c + '</option>').join('');
   cs.value = state.fCultivo;
   cs.onchange = () => { state.fCultivo = cs.value; rerender(); };
 }
 
 function rerender() {
+  makeFilterSelects();
   const activeTab = document.querySelector('[data-tab].visible')?.dataset.tab || 'general';
   switchTab(activeTab);
 }
