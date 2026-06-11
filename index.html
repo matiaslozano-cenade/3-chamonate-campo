@@ -274,12 +274,12 @@ function kpiHTML(label, value, sub, danger, color) {
 
 // =========== DATA INIT ===========
 async function initData() {
-  // v_3_campo_cc tiene >1000 filas — paginar para traer todo
+  // v_3_chamonate_campo_cc tiene >1000 filas — paginar para traer todo
   const ccRows = [];
   const PAGE = 1000;
   let from = 0;
   while (true) {
-    const { data, error } = await db.from('v_3_campo_cc').select('*').range(from, from + PAGE - 1);
+    const { data, error } = await db.from('v_3_chamonate_campo_cc').select('*').range(from, from + PAGE - 1);
     if (error) {
       document.getElementById('loading-overlay').innerHTML = '<p class="text-red-500 font-semibold">Error cargando datos. Revisa la consola.</p>';
       console.error(error);
@@ -290,11 +290,11 @@ async function initData() {
     from += PAGE;
   }
 
-  // v_3_campo_cuenta (>1000 filas) — para el EERR por cuenta. Paginar.
+  // v_3_chamonate_campo_cuenta (>1000 filas) — para el EERR por cuenta. Paginar.
   RAW_CUENTA = [];
   let cFrom = 0;
   while (true) {
-    const { data, error } = await db.from('v_3_campo_cuenta').select('cod,grupo,ano,mes,n_cuenta,tipo,monto').range(cFrom, cFrom + PAGE - 1);
+    const { data, error } = await db.from('v_3_chamonate_campo_cuenta').select('cod,grupo,ano,mes,n_cuenta,tipo,monto').range(cFrom, cFrom + PAGE - 1);
     if (error) {
       document.getElementById('loading-overlay').innerHTML = '<p class="text-red-500 font-semibold">Error cargando datos. Revisa la consola.</p>';
       console.error(error);
@@ -306,7 +306,7 @@ async function initData() {
   }
 
   const [grupoRes, catRes] = await Promise.all([
-    db.from('v_3_campo_grupo').select('*'),
+    db.from('v_3_chamonate_campo_grupo').select('*'),
     db.from('3_chamonate_centros_costo').select('cod,lm_cod,nombre,grupo,cultivo,variedad').eq('linea_negocio','campo')
   ]);
 
@@ -1164,7 +1164,7 @@ async function downloadDetalle(params) {
   const PAGE = 1000;
   showToast('⏳ Descargando detalle...', '#166534');
   while (true) {
-    let q = db.from('v_3_campo_detalle').select('*');
+    let q = db.from('v_3_chamonate_campo_detalle').select('*');
     if (tipo && tipo !== 'ambos') q = q.eq('tipo', tipo);
     // ano = temporada (año de inicio, may->abr). Traducir a año/mes contable real.
     if (ano && mes && mes > 0) {
