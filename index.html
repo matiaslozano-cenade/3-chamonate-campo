@@ -307,7 +307,7 @@ async function initData() {
 
   const [grupoRes, catRes] = await Promise.all([
     db.from('v_3_chamonate_campo_grupo').select('*'),
-    db.from('3_chamonate_centros_costo').select('cod,lm_cod,nombre,grupo,cultivo,variedad').eq('linea_negocio','campo')
+    db.from('3_chamonate_campo_pack_maqu_centros_costo').select('cod,lm_cod,nombre,grupo,cultivo,variedad').eq('linea_negocio','campo')
   ]);
 
   if (grupoRes.error || catRes.error) {
@@ -1054,7 +1054,7 @@ async function loadMovimientos(cod, nombre) {
   document.getElementById('mov-panel').scrollIntoView({behavior:'smooth', block:'start'});
 
   const t = state.year; // temporada (año de inicio)
-  let query = db.from('3_chamonate_libro_mayor')
+  let query = db.from('3_chamonate_campo_pack_maqu_libro_mayor')
     .select('fecha,tipo_doc,numero,glosa_enc,n_cuenta,glosa_det,debe,haber,rut,nombre')
     .eq('c_cc', cod)
     .order('fecha', {ascending:true})
