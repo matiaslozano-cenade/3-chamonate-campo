@@ -39,6 +39,8 @@ General · Mensual · **Por Grupo CC** · **Por Sucursal** · Por Cuartel.
 - **Por Grupo CC**: resumen global (todas las sucursales) por **cultivo**, con drill **Cultivo → Tipo de cultivo**; respeta los filtros de temporada/mes. (Equivale a la fila "GRUPO CCOSTO" del Power BI.)
 - **Por Sucursal**: drill jerárquico **Sucursal (predio) → Cultivo → Tipo de cultivo**. Cada nivel termina con un **Estado de Resultado (EERR) por cuenta** y un gráfico "Costos por cuenta" que respetan el filtro activo: Ingresos → costos desglosados por cuenta → Total costos → Resultado → Margen %.
 
+En el **EERR por cuenta** cada monto es **clickeable para descargar su detalle** del Libro Mayor: **INGRESOS**, **cada cuenta de costo** y **TOTAL COSTOS**. La descarga respeta el scope activo (temporada, mes, sucursal, cultivo, variedad, cuartel) filtrando `v_3_campo_detalle` por `n_cuenta` (y por `cultivo`/`variedad`, columnas agregadas a la vista para este fin).
+
 ## Dimensiones: campo / cultivo / tipo de cultivo
 
 Cada centro de costo está clasificado en el catálogo (`3_chamonate_centros_costo`):
