@@ -59,3 +59,7 @@ La clasificación se hizo por patrón sobre el nombre del cuartel y vive en el c
 ## Desarrollo
 
 Abrir `index.html` directamente en el navegador (lee Supabase con la anon key embebida).
+
+## Dominio
+
+URL oficial: **https://kpi-campo.chamonate.portalcenade.cl**. Cualquier acceso vía `*.vercel.app` redirige (308) al dominio oficial — configurado en `vercel.json` (`redirects` con condición `host`).
