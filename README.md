@@ -53,7 +53,7 @@ La clasificación se hizo por patrón sobre el nombre del cuartel y vive en el c
 ## Reglas de negocio (contables)
 
 - **Ingresos:** cuentas `4%` → `sum(haber − debe)`.
-- **Costos:** cuentas `3%` con `debe > 0` → `sum(debe)`.
+- **Costos:** cuentas `3%` → `sum(debe - haber)` (**neteado**: las reversas —p. ej. provisiones de facturas revertidas— descuentan el costo). Cambiado el 2026-07-08; antes era `debe > 0 → sum(debe)`, que inflaba costos.
 - El EERR (`v_3_campo_cuenta`) usa exactamente la misma lógica que `v_3_campo_cc`, por lo que los totales cuadran al peso.
 
 ## Desarrollo
