@@ -5,6 +5,17 @@
   "outputDirectory": ".",
   "redirects": [
     {
+      "source": "/",
+      "has": [
+        {
+          "type": "host",
+          "value": ".*\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://kpi-campo.chamonate.portalcenade.cl/",
+      "permanent": true
+    },
+    {
       "source": "/:path*",
       "has": [
         {
