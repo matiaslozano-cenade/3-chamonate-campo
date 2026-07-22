@@ -41,6 +41,8 @@ General · Mensual · **Por Grupo CC** · **Por Sucursal** · Por Cuartel.
 
 En el **EERR por cuenta** cada monto es **clickeable para descargar su detalle** del Libro Mayor: **INGRESOS**, **cada cuenta de costo** y **TOTAL COSTOS**. La descarga respeta el scope activo (temporada, mes, sucursal, cultivo, variedad, cuartel) filtrando `v_3_campo_detalle` por `n_cuenta` (y por `cultivo`/`variedad`, columnas agregadas a la vista para este fin).
 
+El CSV incluye la columna **`proveedor`** (desde `n_auxiliar` del Libro Mayor). Presente en ~73% de las filas de costo; en remuneraciones y asientos internos viene vacío (no aplica proveedor).
+
 ## Dimensiones: campo / cultivo / tipo de cultivo
 
 Cada centro de costo está clasificado en el catálogo (`3_chamonate_centros_costo`):
